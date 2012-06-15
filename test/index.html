@@ -1,0 +1,145 @@
+<!doctype html>
+<title>Basic Test</title>
+<style>
+  body, html {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  .col {
+    width: 50%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    float: left;
+  }
+
+  pre, .wr{
+    display: block;
+    font-weight: bold;
+    font-size: 12px;
+    height: 90%;
+    margin: 5px 5px 10px 5px;
+    padding: 5px;
+  }
+
+  code, textarea {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    border: 0;
+    font-weight: normal;
+    margin: 10px 0 0 0;
+  }
+
+  textarea {
+    height: 90%;
+  }
+</style>
+<div class="col">
+  <div class="wr">
+    Definition
+    <textarea id="def">
+rrdtool graph - \
+--imgformat=PNG \
+--start=1339055948 \
+--end 1339142348 \
+--title="Aggregate IPT" \
+--vertical-label "bits per second" \
+--rigid \
+--base=1000 \
+--height=160 \
+--width 520 \
+--alt-autoscale-max \
+--lower-limit 0 \
+--slope-mode \
+--font TITLE:10:Times \
+--font AXIS:7:Courier \
+--font LEGEND:0:Times \
+--font UNIT:7: \
+COMMENT:"From 2012/06/07 10\:59\:08 To 2012/06/08 10\:59\:08" \
+COMMENT:"  \n" \
+DEF:a="/var/www/cacti/rra/3560_in_sole_14_traffic_in_7328.rrd":traffic_in:AVERAGE
+\
+DEF:b="/var/www/cacti/rra/6504_in_sole_25_traffic_in_6223.rrd":traffic_in:AVERAGE
+\
+DEF:c="/var/www/cacti/rra/7606_in_akm_atj_68_traffic_in_12540.rrd":traffic_in:AVERAGE
+\
+DEF:d="/var/www/cacti/rra/6504_in_sole_25_traffic_in_9986.rrd":traffic_in:AVERAGE
+\
+DEF:e="/var/www/cacti/rra/3560_in_sole_14_traffic_in_7328.rrd":traffic_out:AVERAGE
+\
+DEF:f="/var/www/cacti/rra/6504_in_sole_25_traffic_in_6223.rrd":traffic_out:AVERAGE
+\
+DEF:g="/var/www/cacti/rra/7606_in_akm_atj_68_traffic_in_12540.rrd":traffic_out:AVERAGE
+\
+DEF:h="/var/www/cacti/rra/6504_in_sole_25_traffic_in_9986.rrd":traffic_out:AVERAGE
+\
+CDEF:cdefb=a,8,* \
+CDEF:cdeff=b,8,* \
+CDEF:cdefj=c,8,* \
+CDEF:cdefbd=d,8,* \
+CDEF:cdefbi=e,8,* \
+CDEF:cdefcc=f,8,* \
+CDEF:cdefcg=g,8,* \
+CDEF:cdefda=h,8,* \
+COMMENT:"--- IN ---\n"  \
+AREA:cdefb#009485FF:"Linx (STV) S14"  \
+GPRINT:cdefb:LAST:"Current\:%8.2lf %s"  \
+GPRINT:cdefb:AVERAGE:"Average\:%8.2lf %s"  \
+GPRINT:cdefb:MAX:"Maximum\:%8.2lf %s\n"  \
+AREA:cdeff#00FF00FF:"Linx S25":STACK \
+GPRINT:cdeff:LAST:"      Current\:%8.2lf %s"  \
+GPRINT:cdeff:AVERAGE:"Average\:%8.2lf %s"  \
+GPRINT:cdeff:MAX:"Maximum\:%8.2lf %s\n"  \
+AREA:cdefj#FF6044FF:"Linx S14":STACK \
+GPRINT:cdefj:LAST:"      Current\:%8.2lf %s"  \
+GPRINT:cdefj:AVERAGE:"Average\:%8.2lf %s"  \
+GPRINT:cdefj:MAX:"Maximum\:%8.2lf %s\n"  \
+AREA:cdefbd#FFAB00FF:"Cogent S25":STACK \
+GPRINT:cdefbd:LAST:"    Current\:%8.2lf %s"  \
+GPRINT:cdefbd:AVERAGE:"Average\:%8.2lf %s"  \
+GPRINT:cdefbd:MAX:"Maximum\:%8.2lf %s\n"  \
+COMMENT:"--- OUT ---\n"  \
+LINE2:cdefbi#F9FD5FFF:"Linx (STV) S14"  \
+GPRINT:cdefbi:LAST:"Current\:%8.2lf %s"  \
+GPRINT:cdefbi:AVERAGE:"Average\:%8.2lf %s"  \
+GPRINT:cdefbi:MAX:"Maximum\:%8.2lf %s\n"  \
+LINE2.5:cdefcc#0000FFFF:"Linx S25":STACK \
+GPRINT:cdefcc:LAST:"      Current\:%8.2lf %s"  \
+GPRINT:cdefcc:AVERAGE:"Average\:%8.2lf %s"  \
+GPRINT:cdefcc:MAX:"Maximum\:%8.2lf %s\n"  \
+LINE1:cdefcg#817C4EFF:"Linx S14":STACK \
+GPRINT:cdefcg:LAST:"      Current\:%8.2lf %s"  \
+GPRINT:cdefcg:AVERAGE:"Average\:%8.2lf %s"  \
+GPRINT:cdefcg:MAX:"Maximum\:%8.2lf %s\n"  \
+LINE1:cdefda:"Cogent S25\:":STACK \
+GPRINT:cdefda:LAST:"   Current\:%8.2lf %s"  \
+GPRINT:cdefda:AVERAGE:"Average\:%8.2lf %s"  \
+GPRINT:cdefda:MAX:"Maximum\:%8.2lf %s\n"
+    </textarea>
+    <div class="update">
+      <button onclick="parse()">Reparse</button>
+    </div>
+  </div>
+</div>
+<div class="col">
+<pre>Result<code id="result">
+</code>
+</pre>
+</div>
+<script src="../lib/rrdgraph-parser.js"></script>
+<script>
+  window.onload = parse = function () {
+    var def_el = document.getElementById('def');
+    var res_el = document.getElementById('result');
+
+    res_el.innerHTML = '';
+
+    var def = def_el.value;
+    var res = RRDGraph.parser.parse(def);
+
+    res_el.innerHTML = JSON.stringify(res, null, 2);
+  };
+</script>
