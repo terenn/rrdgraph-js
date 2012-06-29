@@ -1,0 +1,57 @@
+<!doctype html>
+<title>Renderer Test</title>
+<style>
+  html, body, div {
+    padding: 0;
+    margin: 0;
+  }
+</style>
+
+<div class="rrdgraph" data-src="resourceId=test&amp;report=daily&amp;start=1340398800000&amp;end=1340485200000"></div>
+<div class="rrdgraph" data-src="resourceId=test&amp;report=weekly&amp;start=1339880400000&amp;end=1340485200000"></div>
+<div class="rrdgraph" data-src="resourceId=test&amp;report=monthly&amp;start=1337893200000&amp;end=1340485200000"></div>
+<div class="rrdgraph" data-src="resourceId=test&amp;report=yearly&amp;start=1308949200000&amp;end=1340485200000"></div>
+
+<script src="http://d3js.org/d3.v2.js"></script>
+<script src="../rrdgraph.js"></script>
+<script src="data.day.js"></script>
+<script src="data.week.js"></script>
+<script src="data.month.js"></script>
+<script>
+  // Override the getters for the test
+  RRDGraph.get.config = function (options) {
+    return (      
+      "/usr/bin/rrdtool graph example.png \\\n" +
+      "--slope-mode \\\n" +
+      "--imgformat=PNG \\\n" +
+      "--start=" + (options.start / 1000) + " \\\n" +
+      "--end=" + (options.end / 1000) + " \\\n" +
+      "--title=\"Test (" + options.report + ")\" \\\n" +
+      "--rigid \\\n" +
+      "--height=200 \\\n" +
+      "--width=500 \\\n" +
+      "--vertical-label=\"C\" \\\n" +
+      "DEF:b=\"example.rrd\":temp:AVERAGE \\\n" +
+      "CDEF:b1=b,1,+ \\\n" +
+      "LINE1:b#009900:\"Outdoors   \"  \\\n" +
+      "GPRINT:b:LAST:\" Cur\:%8.2lf \"  \\\n" +
+      "GPRINT:b:AVERAGE:\"Avg\\:%8.2lf \"  \\\n" +
+      "GPRINT:b:MIN:\"Min\\:%8.2lf \"  \\\n" +
+      "GPRINT:b:MAX:\"Max\\:%8.2lf \\n\" \\\n" +
+      "LINE1:b1#990000:\"Outdoors+1\"" 
+    );
+
+  };
+
+  RRDGraph.get.data = function (options) {
+    console.dir(options);
+    if (options.report === 'daily') return DayData();
+    if (options.report === 'weekly') return WeekData();
+    if (options.report === 'monthly') return MonthData();
+  };
+
+  window.onload = function () {
+    RRDGraph.init('.rrdgraph');
+  };
+</script>
+
