@@ -1,0 +1,32 @@
+body {
+  background-color: #eee;
+  padding-top: 40px;
+}
+body .content {
+  padding-top: 10px;
+}
+
+
+svg {
+  border-right: 2px solid #999; 
+  border-bottom: 2px solid #999; 
+  border-top: 2px solid #ccc; 
+  border-left: 2px solid #ccc;
+  border-radius: 2px;
+  background-color: #f3f3f3;
+  font: 11px monospace;
+}
+
+.y.axis line, .y.axis path {
+  fill: none;
+  stroke: #000;
+}
+
+.x.axis line, .x.axis path {
+  fill: none;
+  stroke: #000;
+}
+
+.graph-header {
+  font: 14px monospace;
+}
