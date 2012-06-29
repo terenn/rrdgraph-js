@@ -10,7 +10,7 @@
 <div class="rrdgraph" data-src="resourceId=test&amp;report=daily&amp;start=1340398800000&amp;end=1340485200000"></div>
 <div class="rrdgraph" data-src="resourceId=test&amp;report=weekly&amp;start=1339880400000&amp;end=1340485200000"></div>
 <div class="rrdgraph" data-src="resourceId=test&amp;report=monthly&amp;start=1337893200000&amp;end=1340485200000"></div>
-<div class="rrdgraph" data-src="resourceId=test&amp;report=yearly&amp;start=1308949200000&amp;end=1340485200000"></div>
+<!--<div class="rrdgraph" data-src="resourceId=test&amp;report=yearly&amp;start=1308949200000&amp;end=1340485200000"></div>-->
 
 <script src="http://d3js.org/d3.v2.js"></script>
 <script src="../rrdgraph.js"></script>
@@ -44,7 +44,6 @@
   };
 
   RRDGraph.get.data = function (options) {
-    console.dir(options);
     if (options.report === 'daily') return DayData();
     if (options.report === 'weekly') return WeekData();
     if (options.report === 'monthly') return MonthData();
