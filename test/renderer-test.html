@@ -57,7 +57,7 @@
     var data = day.data.data.arrays['b'];
     var lastPoint = data.slice(-1)[0];
     var lastValue = lastPoint.v;
-    setInterval(function () {
+    window.interval = setInterval(function () {
       lastPoint = data.slice(-1)[0];
       var newDate = lastPoint.t + 300000;
       var newValue = lastValue - 0.1 + Math.random() * 0.2;

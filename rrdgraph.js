@@ -452,6 +452,9 @@ RRDGraph = {};
 
       // Value extremes, remove NaNs
       for (var p = 0, len = def.length; p < len; ++p) {
+        if (def[p].v === null) {
+          continue;
+        }
         if (def[p].v > this.extremes.y.max) this.extremes.y.max = def[p].v;
         if (def[p].v < this.extremes.y.min) this.extremes.y.min = def[p].v;
       }
@@ -502,6 +505,11 @@ RRDGraph = {};
       attr('transform', 
            'translate(' + this.canvas_padding.x + ',' + this.canvas_padding.y + ')');
 
+    this.svg.clip = container.append('svg:clipPath').
+      attr('id', 'clip').
+      append('svg:rect');
+
+
     this.svg.canvas_bg = canvas.append('svg:rect').
       attr('fill', '#fff');
 
@@ -543,22 +551,29 @@ RRDGraph = {};
 
     for (var g = 0, len = this.config.graphs.elements.length; g < len; ++g) {
       var e = this.config.graphs.elements[g];
-      if (e.type === 'line') {
-        var line = this.graph_elements[g] = d3.svg.line().
+      if (e.type === 'line' || e.type === 'area') {
+        var shape = this.graph_elements[g] = d3.svg[e.type]().
           x(function (d) { return scales.x(new Date(d.t)) }).
-          y(function (d) { return scales.y(d.v) }).
           defined(function (d) { return d.v !== null; }).
           interpolate('linear');
-        this.svg.canvas.selectAll('path.line-' + g).
+
+        if (e.type === 'line') {
+          shape.y(function (d) { return scales.y(d.v) });
+        } else {
+          shape.y1(function (d) { return scales.y(d.v) });
+          shape.y0(function (d) { return scales.y(0) });
+        }
+
+        this.svg.canvas.selectAll('path.' + e.type + '-' + g).
           data([[]]).enter().append('svg:path').
-          attr('d', line([])).
-          attr('class', 'line line-' + g).
-          attr("fill", "none").
-          attr("stroke", e.color).
+          attr('d', shape).
+          attr('class', e.type + '-' + g).
+          attr('fill', (e.type === 'line' ? 'none' : e.color)).
+          attr('stroke', e.color).
           attr('stroke-width', e.width).
+          attr('clip-path', 'url(#clip)').
           attr('shape-rendering', 'auto');
       }
-      // TODO: areas
     }
 
     // TODO: axes, grid
@@ -594,6 +609,10 @@ RRDGraph = {};
     };
 
     this.svg.canvas_bg.
+      attr('width', dims.width).
+      attr('height', dims.height);
+
+    this.svg.clip.
       attr('width', dims.width).
       attr('height', dims.height);
 
@@ -652,16 +671,147 @@ RRDGraph = {};
     this.scales.x.
         domain([this.data.extremes.x.min, this.data.extremes.x.max]);
 
-    // TODO: Lines only ATM
+    
+    var dashes = this.config.options['grid-dash'].replace(':', ' ');
+    var width = this.svg.canvas_bg.attr('width');
+    var height = this.svg.canvas_bg.attr('height');
+
+    this.svg.canvas.selectAll('g.grid').remove();
+
+    // Horizontal Grid, TODO: color
+    var h_ticks = this.scales.y.ticks(6).length;
+    var hgrid_minor = this.svg.canvas.selectAll('g.hgrid-minor').
+      data(this.scales.y.ticks(h_ticks * 5)).
+      enter().append('svg:g').
+      attr('stroke', '#ddd').
+      attr('class', 'grid hgrid-minor').
+      attr('stroke-dasharray', dashes);
+    
+    hgrid_minor.append('svg:line').
+      attr('x1', 0).
+      attr('x2', width).
+      attr('y1', this.scales.y).
+      attr('y2', this.scales.y);
+    
+    var hgrid_major = this.svg.canvas.selectAll('g.hgrid-major').
+      data(this.scales.y.ticks(h_ticks)).
+      enter().append('svg:g').
+      attr('stroke', '#f00').
+      attr('stroke-opacity', '0.2').
+      attr('class', 'grid hgrid-major').
+      attr('stroke-dasharray', dashes);
+
+    hgrid_major.append('svg:line').
+      attr('x1', 0).
+      attr('x2', width).
+      attr('y1', this.scales.y).
+      attr('y2', this.scales.y);
+
+    // Vertical Grid, TODO: color
+    var tick = {vgrid: {}, xaxis: {}};
+    var timespan = this.data.extremes.x.max - this.data.extremes.x.min;
+    if (timespan > 2419200000) { // > month, year view
+      tick.vgrid.min_type = d3.time.days;
+      tick.vgrid.min_count = 1;
+      tick.vgrid.maj_type = d3.time.weeks;
+      tick.vgrid.maj_count = 1;
+      tick.xaxis.type = d3.time.weeks;
+      tick.xaxis.count = 1;
+      tick.xaxis.sub = 0;
+      tick.xaxis.format = d3.time.format('Week %W');
+    } else if (timespan > 604800000) { // > week, month view
+      tick.vgrid.min_type = d3.time.hours;
+      tick.vgrid.min_count = 12;
+      tick.vgrid.maj_type = d3.time.days;
+      tick.vgrid.maj_count = 1;
+      tick.xaxis.type = d3.time.days;
+      tick.xaxis.count = 2;
+      tick.xaxis.sub = 2;
+      tick.xaxis.format = d3.time.format('%a');
+    } else if (timespan > 86400000) { // > day, week view
+      tick.vgrid.min_type = d3.time.hours;
+      tick.vgrid.min_count = 6;
+      tick.vgrid.maj_type = d3.time.days;
+      tick.vgrid.maj_count = 1;
+      tick.xaxis.type = d3.time.days;
+      tick.xaxis.count = 1;
+      tick.xaxis.sub = 4;
+      tick.xaxis.format = d3.time.format('%a');
+    } else { // <= day view
+      tick.vgrid.min_type = d3.time.minutes;
+      tick.vgrid.min_count = 30;
+      tick.vgrid.maj_type = d3.time.hours;
+      tick.vgrid.maj_count = 2;
+      tick.xaxis.type = d3.time.hours;
+      tick.xaxis.count = 6;
+      tick.xaxis.sub = 3;
+      tick.xaxis.format = d3.time.format('%a %H:%M');
+    }
+
+    var vgrid_minor = this.svg.canvas.selectAll('g.vgrid-minor').
+      data(this.scales.x.ticks(tick.vgrid.min_type, tick.vgrid.min_count)).
+      enter().append('svg:g').
+      attr('stroke', '#ddd').
+      attr('class', 'grid hgrid-minor').
+      attr('stroke-dasharray', dashes);
+
+    vgrid_minor.append('svg:line').
+      attr('x1', this.scales.x).
+      attr('x2', this.scales.x).
+      attr('y1', 0).
+      attr('y2', height);
+
+    var vgrid_major = this.svg.canvas.selectAll('g.vgrid-major').
+      data(this.scales.x.ticks(tick.vgrid.maj_type, tick.vgrid.maj_count)).
+      enter().append('svg:g').
+      attr('stroke', '#f00').
+      attr('class', 'grid hgrid-major').
+      attr('stroke-opacity', '0.2').
+      attr('stroke-dasharray', dashes);
+
+    vgrid_major.append('svg:line').
+      attr('x1', this.scales.x).
+      attr('x2', this.scales.x).
+      attr('y1', 0).
+      attr('y2', height);
+
+    // Axes, TODO: color
+    this.svg.canvas.selectAll('g.axis').remove();
+
+    var yAxis = d3.svg.axis().scale(this.scales.y).orient('left').ticks(6).tickSize(2);
+    this.svg.canvas.append('svg:g').
+      attr('class', 'y axis').
+      call(yAxis);
+
+    var xAxis = d3.svg.axis().scale(this.scales.x).orient('bottom').
+      ticks(tick.xaxis.type, tick.xaxis.count).tickSubdivide(tick.xaxis.sub).
+      tickSize(2, 1, 1).tickFormat(tick.xaxis.format);
+
+    this.svg.canvas.append('svg:g').
+      attr('class', 'x axis').
+      attr('transform', 'translate(0,' + height + ')').
+      call(xAxis);
+    
+    this.svg.canvas.selectAll('.axis line, .axis path').
+      style('fill', 'none').
+      style('stroke', '#000');
+
+    this.svg.canvas.selectAll('.axis text').
+      style('font-size', this.config.options.font.axis.size + 'px').
+      style('font-family', this.config.options.font.axis.family);
+
+
+    // TODO: lines and areas only ATM
     for (var g = 0, len = this.config.graphs.elements.length; g < len; ++g) {
       var e = this.config.graphs.elements[g];
-      if (e.type === 'line') {
-        var line = this.graph_elements[g];
-        this.svg.canvas.selectAll('path.line-' + g).
+      if (e.type === 'line' || e.type === 'area') {
+        var shape = this.graph_elements[g];
+        this.svg.canvas.selectAll('path.' + e.type + '-' + g).
           data([this.data.data.arrays[e.value]]).
-          attr('d', line);
+          attr('d', shape);
       }
     }
+
 
   };
 
