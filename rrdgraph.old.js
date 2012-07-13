@@ -50,6 +50,8 @@ RRDGraph = {};
  ******************************************************************************/
 
 (function () {
+  var parser = {};
+
   var tokenize = function (str) {
     var delined = str.replace(/\\\n/g, ' ');
 
@@ -91,7 +93,8 @@ RRDGraph = {};
     }
   };
 
-  var parse = function (config_string) {
+
+  parser.parse = function (def_str) {
     var result = {
       options: {
         'start'             : '-86400', // 1 day before
@@ -140,7 +143,7 @@ RRDGraph = {};
           },
           'unit' : {
             'family': 'monospace',
-            'size': 10
+            'size': 12
           },
           'legend' : {
             'family': 'monospace',
@@ -169,7 +172,7 @@ RRDGraph = {};
       }
     };
 
-    var tokens = tokenize(config_string);
+    var tokens = tokenize(def_str);
 
     for (var t = 0, l = tokens.length; t < l; ++t) {
       var token = tokens[t];
@@ -356,12 +359,11 @@ RRDGraph = {};
     return result;
   };
 
-  RRDGraph.Config = function (src, config_string) {
-    if (src) {
-      config_string = RRDGraph.get.config(src);
-    }
-    var config = parse(config_string);
+  RRDGraph.Config = function (src) {
+    var config_string = RRDGraph.get.config(src);
+    var config = parser.parse(config_str);
 
+    this.src = src;
     this.options = config.options;
     this.defs = config.defs;
     this.graphs = config.graphs;
@@ -371,102 +373,13 @@ RRDGraph = {};
 /*******************************************************************************
  * The data class
  ******************************************************************************/
+
 (function () {
-  var Data = RRDGraph.Data = function (src, config) {
-    this.src = src;
-    this.config = config;
-
-    this.listeners = [];
-
-    this.setup();
-    this.push(RRDGraph.get.data(src));
+  var Data = RRDGraph.Data = function (config) {
   };
 
-  Data.prototype.setup = function () {
-    this.data = {
-      arrays: {}, // DEFS and CDEFS
-      values: {} // VDEFS
-    };
-
-    this.extremes = {
-      x: {min: Number.POSITIVE_INFINITY, max: Number.NEGATIVE_INFINITY},
-      y: {min: Number.POSITIVE_INFINITY, max: Number.NEGATIVE_INFINITY}
-    };
-
-    for (var def in this.config.defs.data) {
-      this.data.arrays[def] = [];
-    }
-    for (var cdef in this.config.defs.calc) {
-      this.data.arrays[cdef] = [];
-    }
-    for (var vdef in this.config.defs.value) {
-      this.data.values[vdef] = {t: NaN, v: NaN};
-    }
-
-  };
-
-  Data.prototype.addListener = function (graph) {
-    this.listeners.push(graph);
-  };
-
-  Data.prototype.notifyUpdate = function () {
-    for (var l = 0, len = this.listeners.length; l < len; ++l) {
-      this.listeners[l].update();
-    }
-  };
-
-  Data.prototype.push = function (points) {
-    this.extremes.x.min = Number.POSITIVE_INFINITY;
-    this.extremes.x.max = Number.NEGATIVE_INFINITY;
-    this.extremes.y.min = Number.POSITIVE_INFINITY;
-    this.extremes.y.max = Number.NEGATIVE_INFINITY;
-
-    for (var name in points) {
-      var defs = [];
-      for (var d in this.config.defs.data) {
-        var def = this.config.defs.data[d];
-        if (def.rrd === name) {
-          defs.push(d);
-        }
-      }
-
-      for (var d = 0; d < defs.length; ++d) {
-        for (var p = 0, len = points[name].length; p < len; ++p) {
-          this.data.arrays[defs[d]].push(points[name][p]);
-        }
-      }
-    }
-
-    // TODO: update cdefs, vdefs
-
-    var domain_length = this.src.end - this.src.start;
-    for (var d in this.data.arrays) {
-      var def = this.data.arrays[d];
-
-      if (def.length > 1) {
-        // Remove all but one element outside the graph (one is left for interpolation)
-        while (def[1].t <= def[def.length - 1].t - domain_length) {
-         def.shift();
-        }
-      }
-
-      // Value extremes, remove NaNs
-      for (var p = 0, len = def.length; p < len; ++p) {
-        if (def[p].v > this.extremes.y.max) this.extremes.y.max = def[p].v;
-        if (def[p].v < this.extremes.y.min) this.extremes.y.min = def[p].v;
-      }
-
-      // Time extremes
-      if (def.length > 0) {
-        if (def[def.length - 1].t > this.extremes.x.max) this.extremes.x.max = def[def.length - 1].t;
-        if (def[0].t < this.extremes.x.min) this.extremes.x.min = def[0].t;
-      }
-    }
-
-    this.notifyUpdate();
-  };
+  Data.prototype.loadInitialData = function (
 })();
-
 
 /*******************************************************************************
  * The graph class
@@ -474,199 +387,285 @@ RRDGraph = {};
 
 (function () {
   var Graph = RRDGraph.Graph = function (element, config) {
+    var c = this.config = config;
     this.element = d3.select(element);
-    this.config = config;
 
-    this.svg = {};
-
-    this.createStatics();
-    this.adjustDimensionsAndPositions();
-    this.defineDynamics();
-  };
-
-  Graph.prototype.createStatics = function () {
-    var container = this.svg.container = this.element.append('svg:svg').
+    // The SVG, TODO: color from config
+    var svg = this.svg = this.element.append('svg:svg').
+      attr('width', c.options.width + (c.options['full-size-mode'] ? 0 : 100)).
+      attr('height', c.options.height + (c.options['full-size-mode'] ? 0 : 75)).
       attr('shape-rendering', 'crispEdges').
       style('background-color', '#f3f3f3').
-      style('border-right', this.config.options.border + 'px solid #999').
-      style('border-bottom', this.config.options.border + 'px solid #999').
-      style('border-top', this.config.options.border + 'px solid #ccc').
-      style('border-left', this.config.options.border + 'px solid #ccc');
+      style('border-right', c.options.border + 'px solid #999').
+      style('border-bottom', c.options.border + 'px solid #999').
+      style('border-top', c.options.border + 'px solid #ccc').
+      style('border-left', c.options.border + 'px solid #ccc');
 
-    this.canvas_padding = {
-      x: this.config.options.font.unit.size + 50,
-      y: this.config.options.font.title.size + 20
-    };
+    // Add the clip path, TODO: full-size-mode
+    svg.append('svg:clipPath').attr('id', 'clip').
+      append('svg:rect').
+      attr('width', c.options.width).
+      attr('height', c.options.height);
 
-    var canvas = this.svg.canvas = container.append('svg:g').
-      attr('transform', 
-           'translate(' + this.canvas_padding.x + ',' + this.canvas_padding.y + ')');
+    var canvas = this.canvas = svg.append('svg:g').
+      attr('transform', 'translate(65, 30)');
 
-    this.svg.canvas_bg = canvas.append('svg:rect').
+
+    // Canvas Background, TODO: color from config, full-size-mode
+    var canvas_bg = this.canvas_bg = canvas.append('svg:rect').
+      attr('width', c.options.width).
+      attr('height', c.options.height).
       attr('fill', '#fff');
 
-    this.svg.title = container.append('svg:text').
-      attr('text-anchor', 'middle').
-      text(this.config.options.title).
-      style('font-size', this.config.options.font.title.size + 'px').
-      style('font-family', this.config.options.font.title.family);
+    // Title, TODO: color
+    svg.append('svg:text').
+      attr('x', svg.attr('width') / 2).
+      attr('y', 20).
+      attr("text-anchor", "middle").
+      text(c.options.title).
+      style('font-size', c.options.font.title.size + 'px').
+      style('font-family', c.options.font.title.family);
+    
+    // Vertical Label, TODO: color
+    svg.append('svg:text').
+      attr('x', -canvas_bg.attr('height') / 2 - 30).
+      attr('y', c.options.font.unit.size + 2).
+      style('font-size', c.options.font.unit.size + 'px').
+      style('font-family', c.options.font.unit.family).
+      attr("transform", "rotate(270)").
+      text(c.options['vertical-label']);
 
-    this.svg.v_label = container.append('svg:text').
-      style('font-size', this.config.options.font.unit.size + 'px').
-      style('font-family', this.config.options.font.unit.family).
-      attr('transform', 'rotate(270)').
-      text(this.config.options['vertical-label']);
-
-    this.svg.logo = container.append('svg:text').
+    // Logo
+    svg.append('svg:text').
+      attr('x', 2).
+      attr('y', 9 - svg.attr('width')).
       attr('fill', '#aaa').
       style('font', '9px monospace').
-      attr('transform', 'rotate(90)').
-      text('RRDGRAPH-JS / D3.JS');
+      attr("transform", "rotate(90)").
+      text("RRDGRAPH-JS / D3.JS");
 
-    if (this.config.options.watermark !== '') {
-      this.svg.watermark = container.append('svg:text').
-        attr('fill', '#aaa').
-        attr('text-anchor', 'middle').
-        text(this.config.options.watermark).
-        style('font-size', this.config.options.font.watermark.size + 'px').
-        style('font-family', this.config.options.font.watermark.family);
-    }
   };
 
-  Graph.prototype.defineDynamics = function () {
-    var scales = this.scales = {
-      y: d3.scale.linear().range([this.config.options.height, 0]),
-      x: d3.time.scale().range([0, this.config.options.width])
+  // TODO: all other functions
+  var RPN = {
+    '+' : function (s) { s.push(s.pop() + s.pop()) },
+    '*' : function (s) { s.push(s.pop() * s.pop()) },
+    '-' : function (s) { var m = s.pop(); s.push(s.pop() - m) },
+    '/' : function (s) { var m = s.pop(); s.push(s.pop() / m) },
+    '%' : function (s) { var m = s.pop(); s.push(s.pop() % m) }
+  };
+
+  Graph.prototype.updateDefs = function (data) {
+    this.data = {};
+    var c = this.config;
+    var e = this.extremes = {
+      x: {min: Number.POSITIVE_INFINITY, max: Number.NEGATIVE_INFINITY},
+      y: {min: Number.POSITIVE_INFINITY, max: Number.NEGATIVE_INFINITY}
     };
+    
+    // DEFS
+    for (var d in c.defs.data) {
+      this.data[d] = data[c.defs.data[d].rrd];
+      for (var p in this.data[d]) {
+        var time = this.data[d][p].t;
+        var value = this.data[d][p].v;
+        if (value > e.y.max) e.y.max = value;
+        if (value < e.y.min) e.y.min = value;
+        if (time > e.x.max) e.x.max = time;
+        if (time < e.x.min) e.x.min = time;
+      }
+    }
 
-    this.graph_elements = [];
+    // CDEFS, TODO: allow DEFS with different # of points
+    for (var d in c.defs.calc) {
+      this.data[d] = [];
+      var expr = c.defs.calc[d].split(',');
+      var stack = [];
+      // TODO: calculate
+    }
 
-    for (var g = 0, len = this.config.graphs.elements.length; g < len; ++g) {
-      var e = this.config.graphs.elements[g];
+    return this;
+  };
+
+  Graph.prototype.draw = function (data) {
+    this.updateDefs(data);
+
+    var config = this.config;
+
+    var canvas = this.canvas;
+    var canvas_bg = this.canvas_bg;
+
+    var width = canvas_bg.attr('width');
+    var height = canvas_bg.attr('height');
+
+
+    var scales = {
+      y: d3.scale.linear().
+        domain([Math.floor(this.extremes.y.min), Math.ceil(this.extremes.y.max)]).
+        range([height, 0]),
+      x: d3.time.scale().
+        domain([this.extremes.x.min, this.extremes.x.max]).
+        range([0, width])
+    };
+    
+    var dashes = config.options['grid-dash'].replace(':', ' ');
+
+    // Horizontal Grid, TODO: color
+    var hgrid_minor = canvas.selectAll("g.rule").
+      data(scales.y.ticks(30)).
+      enter().append("svg:g").
+      attr("stroke", "#ddd").
+      attr("stroke-dasharray", dashes);
+
+    hgrid_minor.append("svg:line").
+      attr("x1", 0).
+      attr("x2", width).
+      attr("y1", scales.y).
+      attr("y2", scales.y);
+
+    var hgrid_major = canvas.selectAll("g.rule").
+      data(scales.y.ticks(6)).
+      enter().append("svg:g").
+      attr("stroke", "#f00").
+      attr("stroke-opacity", "0.2").
+      attr("stroke-dasharray", dashes);
+
+    hgrid_major.append("svg:line").
+      attr("x1", 0).
+      attr("x2", width).
+      attr("y1", scales.y).
+      attr("y2", scales.y);
+
+    // Vertical Grid, TODO: color
+    var tick = {vgrid: {}, xaxis: {}};
+    var timespan = this.extremes.x.max - this.extremes.x.min;
+    if (timespan > 2419200000) { // > month, year view
+      tick.vgrid.min_type = d3.time.months;
+      tick.vgrid.min_count = 1;
+      tick.vgrid.maj_type = d3.time.months;
+      tick.vgrid.maj_count = 1;
+      tick.xaxis.type = d3.time.months;
+      tick.xaxis.count = 1;
+      tick.xaxis.sub = 0;
+      tick.xaxis.format = d3.time.format('%b');
+    } else if (timespan > 604800000) { // > week, month view
+      tick.vgrid.min_type = d3.time.hours;
+      tick.vgrid.min_count = 12;
+      tick.vgrid.maj_type = d3.time.days;
+      tick.vgrid.maj_count = 1;
+      tick.xaxis.type = d3.time.days;
+      tick.xaxis.count = 2;
+      tick.xaxis.sub = 2;
+      tick.xaxis.format = d3.time.format('%a');
+    } else if (timespan > 86400000) { // > day, week view
+      tick.vgrid.min_type = d3.time.hours;
+      tick.vgrid.min_count = 6;
+      tick.vgrid.maj_type = d3.time.days;
+      tick.vgrid.maj_count = 1;
+      tick.xaxis.type = d3.time.days;
+      tick.xaxis.count = 1;
+      tick.xaxis.sub = 4;
+      tick.xaxis.format = d3.time.format('%a');
+    } else { // <= day view
+      tick.vgrid.min_type = d3.time.minutes;
+      tick.vgrid.min_count = 30;
+      tick.vgrid.maj_type = d3.time.hours;
+      tick.vgrid.maj_count = 2;
+      tick.xaxis.type = d3.time.hours;
+      tick.xaxis.count = 6;
+      tick.xaxis.sub = 3;
+      tick.xaxis.format = d3.time.format('%a %H:%M');
+    }
+
+    var vgrid_minor = canvas.selectAll("g.rule").
+      data(scales.x.ticks(tick.vgrid.min_type, tick.vgrid.min_count)).
+      enter().append("svg:g").
+      attr("stroke", "#ddd").
+      attr("stroke-dasharray", dashes);
+
+    vgrid_minor.append("svg:line").
+      attr("x1", scales.x).
+      attr("x2", scales.x).
+      attr("y1", 0).
+      attr("y2", height);
+
+    var vgrid_major = canvas.selectAll("g.rule").
+      data(scales.x.ticks(tick.vgrid.maj_type, tick.vgrid.maj_count)).
+      enter().append("svg:g").
+      attr("stroke", "#f00").
+      attr("stroke-opacity", "0.2").
+      attr("stroke-dasharray", dashes);
+
+    vgrid_major.append("svg:line").
+      attr("x1", scales.x).
+      attr("x2", scales.x).
+      attr("y1", 0).
+      attr("y2", height);
+
+    // Axes, TODO: color
+    var yAxis = d3.svg.axis().scale(scales.y).orient('left').ticks(6).tickSize(2);
+    canvas.append("svg:g").
+      attr('class', 'y axis').
+      call(yAxis);
+
+    var xAxis = d3.svg.axis().scale(scales.x).orient('bottom').
+      ticks(tick.xaxis.type, tick.xaxis.count).tickSubdivide(tick.xaxis.sub).
+      tickSize(2, 1, 1).tickFormat(tick.xaxis.format);
+
+    canvas.append('svg:g').
+      attr('class', 'x axis').
+      attr('transform', 'translate(0,' + height + ')').
+      call(xAxis);
+    
+    canvas.selectAll('.axis line, .axis path').
+      style('fill', 'none').
+      style('stroke', '#000');
+
+    canvas.selectAll('.axis text').
+      style('font-size', config.options.font.axis.size + 'px').
+      style('font-family', config.options.font.axis.family);
+
+
+    // Lines, TODO: legend
+    for (var g in config.graphs.elements) {
+      var e = config.graphs.elements[g];
       if (e.type === 'line') {
-        var line = this.graph_elements[g] = d3.svg.line().
-          x(function (d) { return scales.x(new Date(d.t)) }).
-          y(function (d) { return scales.y(d.v) }).
-          defined(function (d) { return d.v !== null; }).
-          interpolate('linear');
-        this.svg.canvas.selectAll('path.line-' + g).
-          data([[]]).enter().append('svg:path').
-          attr('d', line([])).
-          attr('class', 'line line-' + g).
+        canvas.selectAll('path.line').
+          data([this.data[e.value]]).enter().
+          append('svg:g').append('svg:path').
+          attr('d', d3.svg.line().
+            x(function(d) { return scales.x(new Date(d.t)) }).
+            y(function(d) { return scales.y(d.v) })
+          ).
+          attr('class', 'line').
           attr("fill", "none").
           attr("stroke", e.color).
           attr('stroke-width', e.width).
+          attr('clip-path', 'url(#clip)').
           attr('shape-rendering', 'auto');
-      }
-      // TODO: areas
-    }
 
-    // TODO: axes, grid
-  };
-
-  Graph.prototype.createLegend = function () { // TODO
-    var y = this.canvas_padding.y + this.config.options.height + 
-      this.config.options.font.axis.size + 10;
-
-    var legend = this.svg.legend = this.svg.container.append('svg:rect').
-      attr('width', this.svg.container.attr('width') - 20).
-      attr('height', 30).
-      attr('x', 10).
-      attr('y', y).
-      attr('fill', '#fff').
-      append('svg:text');
-
-    this.svg.container.append('svg:text').
-      attr('fill', '#000').
-      attr('x', 15).
-      attr('y', y + 20).
-      text('Legend will be here');
-
-    return {y: y, height: 30};
-  };
-
-  Graph.prototype.adjustDimensionsAndPositions = function () {
-    /* TODO: full-size-mode and only-graph are not supported (yet) */
-
-    var dims = {
-      width: this.config.options.width,
-      height: this.config.options.height
-    };
-
-    this.svg.canvas_bg.
-      attr('width', dims.width).
-      attr('height', dims.height);
-
-    this.svg.container.
-      attr('width', dims.width + this.canvas_padding.x + 30); // TODO: right-axis padding
-
-    this.svg.title.
-      attr('x', this.svg.container.attr('width') / 2).
-      attr('y', this.config.options.font.title.size + 5);
-
-    this.svg.v_label.
-      attr('x', -dims.height / 2 - this.canvas_padding.y).
-      attr('y', this.config.options.font.unit.size + 2);
-
-    this.svg.logo.
-      attr('x', 2).
-      attr('y', 9 - this.svg.container.attr('width'));
-
-    var legend;
-    if (!this.config.options['no-legend']) {
-      /* The legend is created here because it needs to know the dimensions
-       * of the container and the canvas */
-      var legend = this.createLegend();
-    } else {
-      legend = {
-        y: this.canvas_padding.y + this.config.options.height + 
-          this.config.options.font.axis.size + 10,
-        h: 0
-      };
-    }
-
-    var container_height = legend.y + legend.height + 8;
-
-    if (this.svg.watermark !== undefined) {
-      var watermark_y = legend.y + legend.height + 
-        this.config.options.font.watermark.size + 5;
-      this.svg.watermark.
-        attr('x', this.svg.container.attr('width') / 2).
-        attr('y', watermark_y);
-      container_height += this.config.options.font.watermark.size + 5;
-    }
-
-    this.svg.container.
-      attr('height', container_height);
-  };
-
-  Graph.prototype.bind = function (data) {
-    this.data = data;
-    data.addListener(this);
-    this.update();
-  };
-
-  Graph.prototype.update = function () {
-    this.scales.y.
-      domain([Math.floor(this.data.extremes.y.min), Math.ceil(this.data.extremes.y.max)]);
-    this.scales.x.
-        domain([this.data.extremes.x.min, this.data.extremes.x.max]);
-
-    // TODO: Lines only ATM
-    for (var g = 0, len = this.config.graphs.elements.length; g < len; ++g) {
-      var e = this.config.graphs.elements[g];
-      if (e.type === 'line') {
-        var line = this.graph_elements[g];
-        this.svg.canvas.selectAll('path.line-' + g).
-          data([this.data.data.arrays[e.value]]).
-          attr('d', line);
       }
     }
 
-  };
+    /*
 
+    for (var d in this.data) {
+      this.canvas.data(this.data[d]).append("svg:path").
+        attr("d", d3.svg.line()
+          .x(function(d) { return x(new Date(d.date)) })
+          .y(function(d) { return y(d.temp) })
+        ).
+        attr("fill", "none").
+        attr("stroke", "#00f").
+        attr('stroke-width', 1).
+        attr('shape-rendering', 'auto');
+    }
+
+    */
+  }
 
 })();
+
 
 /*******************************************************************************
  * Main functions
@@ -684,25 +683,21 @@ RRDGraph = {};
   };
 
   RRDGraph.init = function (selector) {
-    var result = [];
     d3.selectAll(selector).each(function () {
       var src = parseSrc(this.dataset.src);
       var element = this;
 
       var config = new RRDGraph.Config(src);
       var graph = new RRDGraph.Graph(element, config);
-      var data = new RRDGraph.Data(src, config);
+      var data = new RRDGraph.Data(config);
 
       graph.bind(data);
 
-      result.push({
-        config: config,
-        graph: graph,
-        data: data
-      });
+      /*
+      var data = RRDGraph.get.data(options);
+      graph.draw(data);
+      */
     });
-
-    return result;
   };
 
 })();

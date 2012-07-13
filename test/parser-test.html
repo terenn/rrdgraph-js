@@ -1,5 +1,5 @@
 <!doctype html>
-<title>Basic Test</title>
+<title>Parser Test</title>
 <style>
   body, html {
     height: 100%;
@@ -138,7 +138,7 @@ GPRINT:cdefda:MAX:"Maximum\:%8.2lf %s\n"
     res_el.innerHTML = '';
 
     var def = def_el.value;
-    var res = RRDGraph.parser.parse(def);
+    var res = new RRDGraph.Config(null, def);
 
     res_el.innerHTML = JSON.stringify(res, null, 2);
   };

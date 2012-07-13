@@ -8,6 +8,7 @@
  --height=200 \
  --width=500 \
  --vertical-label="C" \
+ --watermark="This is the watermark" \
  DEF:b="example.rrd":temp:AVERAGE \
  LINE1:b#009900:"Outdoors   "  \
  GPRINT:b:LAST:" Cur\:%8.2lf "  \
@@ -27,6 +28,7 @@
  --height=200 \
  --width=500 \
  --vertical-label="C" \
+ --watermark="This is the watermark" \
  DEF:b="example.rrd":temp:AVERAGE \
  LINE1:b#009900:"Outdoors   "  \
  GPRINT:b:LAST:" Cur\:%8.2lf "  \
@@ -46,6 +48,7 @@
  --height=200 \
  --width=500 \
  --vertical-label="C" \
+ --watermark="This is the watermark" \
  DEF:b="example.rrd":temp:AVERAGE \
  LINE1:b#009900:"Outdoors   "  \
  GPRINT:b:LAST:" Cur\:%8.2lf "  \
@@ -65,6 +68,7 @@
  --height=200 \
  --width=500 \
  --vertical-label="C" \
+ --watermark="This is the watermark" \
  DEF:b="example.rrd":temp:AVERAGE \
  LINE1:b#009900:"Outdoors   "  \
  GPRINT:b:LAST:" Cur\:%8.2lf "  \

@@ -19,18 +19,19 @@
 <script src="data.month.js"></script>
 <script>
   // Override the getters for the test
-  RRDGraph.get.config = function (options) {
-    return (      
+  RRDGraph.get.config = function (src) {
+    return (
       "/usr/bin/rrdtool graph example.png \\\n" +
       "--slope-mode \\\n" +
       "--imgformat=PNG \\\n" +
-      "--start=" + (options.start / 1000) + " \\\n" +
-      "--end=" + (options.end / 1000) + " \\\n" +
-      "--title=\"Test (" + options.report + ")\" \\\n" +
+      "--start=" + (src.start / 1000) + " \\\n" +
+      "--end=" + (src.end / 1000) + " \\\n" +
+      "--title=\"Test (" + src.report + ")\" \\\n" +
       "--rigid \\\n" +
       "--height=200 \\\n" +
       "--width=500 \\\n" +
       "--vertical-label=\"C\" \\\n" +
+      "--watermark=\"This is the watermark\" \\\n" +
       "DEF:b=\"example.rrd\":temp:AVERAGE \\\n" +
       "CDEF:b1=b,1,+ \\\n" +
       "LINE1:b#009900:\"Outdoors   \"  \\\n" +
@@ -43,14 +44,31 @@
 
   };
 
-  RRDGraph.get.data = function (options) {
-    if (options.report === 'daily') return DayData();
-    if (options.report === 'weekly') return WeekData();
-    if (options.report === 'monthly') return MonthData();
+  RRDGraph.get.data = function (src) {
+    if (src.report === 'daily') return DayData();
+    if (src.report === 'weekly') return WeekData();
+    if (src.report === 'monthly') return MonthData();
   };
 
   window.onload = function () {
-    RRDGraph.init('.rrdgraph');
+    var graphs = RRDGraph.init('.rrdgraph');
+    var day = graphs[0];
+
+    var data = day.data.data.arrays['b'];
+    var lastPoint = data.slice(-1)[0];
+    var lastValue = lastPoint.v;
+    setInterval(function () {
+      lastPoint = data.slice(-1)[0];
+      var newDate = lastPoint.t + 300000;
+      var newValue = lastValue - 0.1 + Math.random() * 0.2;
+      lastValue = newValue;
+      var newPoint = {t: newDate, v: newValue};
+      if (Math.random() < 0.1) {
+        console.log('null');
+        newPoint.v = null;
+      }
+      day.data.push({"example.rrd" : [newPoint]});
+    }, 300);
   };
 </script>
 
