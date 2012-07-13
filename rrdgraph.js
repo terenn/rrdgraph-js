@@ -505,12 +505,16 @@ RRDGraph = {};
       attr('transform', 
            'translate(' + this.canvas_padding.x + ',' + this.canvas_padding.y + ')');
 
+    this.svg.bottom_layer = canvas.append('svg:g').attr('class', 'bottom-layer');
+    this.svg.middle_layer = canvas.append('svg:g').attr('class', 'middle-layer');
+    this.svg.top_layer = canvas.append('svg:g').attr('class', 'top-layer');
+
     this.svg.clip = container.append('svg:clipPath').
       attr('id', 'clip').
       append('svg:rect');
 
 
-    this.svg.canvas_bg = canvas.append('svg:rect').
+    this.svg.canvas_bg = this.svg.bottom_layer.append('svg:rect').
       attr('fill', '#fff');
 
     this.svg.title = container.append('svg:text').
@@ -564,7 +568,7 @@ RRDGraph = {};
           shape.y0(function (d) { return scales.y(0) });
         }
 
-        this.svg.canvas.selectAll('path.' + e.type + '-' + g).
+        this.svg.middle_layer.selectAll('path.' + e.type + '-' + g).
           data([[]]).enter().append('svg:path').
           attr('d', shape).
           attr('class', e.type + '-' + g).
@@ -680,7 +684,7 @@ RRDGraph = {};
 
     // Horizontal Grid, TODO: color
     var h_ticks = this.scales.y.ticks(6).length;
-    var hgrid_minor = this.svg.canvas.selectAll('g.hgrid-minor').
+    var hgrid_minor = this.svg.bottom_layer.selectAll('g.hgrid-minor').
       data(this.scales.y.ticks(h_ticks * 5)).
       enter().append('svg:g').
       attr('stroke', '#ddd').
@@ -693,7 +697,7 @@ RRDGraph = {};
       attr('y1', this.scales.y).
       attr('y2', this.scales.y);
     
-    var hgrid_major = this.svg.canvas.selectAll('g.hgrid-major').
+    var hgrid_major = this.svg.top_layer.selectAll('g.hgrid-major').
       data(this.scales.y.ticks(h_ticks)).
       enter().append('svg:g').
       attr('stroke', '#f00').
@@ -748,7 +752,7 @@ RRDGraph = {};
       tick.xaxis.format = d3.time.format('%a %H:%M');
     }
 
-    var vgrid_minor = this.svg.canvas.selectAll('g.vgrid-minor').
+    var vgrid_minor = this.svg.bottom_layer.selectAll('g.vgrid-minor').
       data(this.scales.x.ticks(tick.vgrid.min_type, tick.vgrid.min_count)).
       enter().append('svg:g').
       attr('stroke', '#ddd').
@@ -761,7 +765,7 @@ RRDGraph = {};
       attr('y1', 0).
       attr('y2', height);
 
-    var vgrid_major = this.svg.canvas.selectAll('g.vgrid-major').
+    var vgrid_major = this.svg.top_layer.selectAll('g.vgrid-major').
       data(this.scales.x.ticks(tick.vgrid.maj_type, tick.vgrid.maj_count)).
       enter().append('svg:g').
       attr('stroke', '#f00').
@@ -806,7 +810,7 @@ RRDGraph = {};
       var e = this.config.graphs.elements[g];
       if (e.type === 'line' || e.type === 'area') {
         var shape = this.graph_elements[g];
-        this.svg.canvas.selectAll('path.' + e.type + '-' + g).
+        this.svg.middle_layer.selectAll('path.' + e.type + '-' + g).
           data([this.data.data.arrays[e.value]]).
           attr('d', shape);
       }
