@@ -443,12 +443,14 @@ RRDGraph = {};
     for (var d in this.data.arrays) {
       var def = this.data.arrays[d];
 
+      /* // Don't remove old data
       if (def.length > 1) {
         // Remove all but one element outside the graph (one is left for interpolation)
         while (def[1].t <= def[def.length - 1].t - domain_length) {
          def.shift();
         }
       }
+      */
 
       // Value extremes, remove NaNs
       for (var p = 0, len = def.length; p < len; ++p) {
@@ -732,7 +734,7 @@ RRDGraph = {};
       tick.xaxis.count = 2;
       tick.xaxis.sub = 2;
       tick.xaxis.format = d3.time.format('%a');
-    } else if (timespan > 86400000) { // > day, week view
+    } else if (timespan > 86400000 * 4) { // up to 7 days
       tick.vgrid.min_type = d3.time.hours;
       tick.vgrid.min_count = 6;
       tick.vgrid.maj_type = d3.time.days;
@@ -741,7 +743,25 @@ RRDGraph = {};
       tick.xaxis.count = 1;
       tick.xaxis.sub = 4;
       tick.xaxis.format = d3.time.format('%a');
-    } else { // <= day view
+    } else if (timespan > 86400000 * 2) { // up to 4 days
+      tick.vgrid.min_type = d3.time.hours;
+      tick.vgrid.min_count = 3;
+      tick.vgrid.maj_type = d3.time.hours;
+      tick.vgrid.maj_count = 12;
+      tick.xaxis.type = d3.time.hours;
+      tick.xaxis.count = 12;
+      tick.xaxis.sub = 3;
+      tick.xaxis.format = d3.time.format('%a %H:%M');
+    } else if (timespan > 86400000) { // > up to 2 days
+      tick.vgrid.min_type = d3.time.hours;
+      tick.vgrid.min_count = 1;
+      tick.vgrid.maj_type = d3.time.hours;
+      tick.vgrid.maj_count = 4;
+      tick.xaxis.type = d3.time.hours;
+      tick.xaxis.count = 8;
+      tick.xaxis.sub = 4;
+      tick.xaxis.format = d3.time.format('%a %H:%M');
+    } else { // up to 1 day
       tick.vgrid.min_type = d3.time.minutes;
       tick.vgrid.min_count = 30;
       tick.vgrid.maj_type = d3.time.hours;

@@ -56,20 +56,34 @@
 
     var data = day.data.data.arrays['b'];
     var lastPoint = data.slice(-1)[0];
+    if (lastPoint === undefined) {
+      lastPoint = {
+        t: +new Date(),
+        v: 20
+      };
+    }
     var lastValue = lastPoint.v;
 
     d3.select('.rrdgraph').on('click', function () {
       window.interval = setInterval(function () {
         lastPoint = data.slice(-1)[0];
+        if (lastPoint === undefined) {
+          lastPoint = {
+            t: +new Date(),
+            v: 20
+          };
+        }
         var newDate = lastPoint.t + 300000;
         var newValue = lastValue - 0.1 + Math.random() * 0.2;
         lastValue = newValue;
         var newPoint = {t: newDate, v: newValue};
+        /*
         if (Math.random() < 0.1) {
           newPoint.v = null;
         }
+        */
         day.data.push({"example.rrd" : [newPoint]});
-      }, 300);
+      }, 100);
     });
   };
 </script>

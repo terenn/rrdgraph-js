@@ -10,7 +10,9 @@
  --vertical-label="C" \
  --watermark="This is the watermark" \
  DEF:b="example.rrd":temp:AVERAGE \
+ DEF:c="example.rrd":temp:AVERAGE:start=1340370000:end=1340490000 \
  LINE1:b#009900:"Outdoors   "  \
+ LINE1:c#009900:"Outdoors2   "  \
  GPRINT:b:LAST:" Cur\:%8.2lf "  \
  GPRINT:b:AVERAGE:"Avg\:%8.2lf "  \
  GPRINT:b:MIN:"Min\:%8.2lf "  \
