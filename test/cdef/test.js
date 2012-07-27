@@ -453,3 +453,237 @@ test('Single DEF, FLOOR & CEIL operators', function () {
 
   deepEqual(data.data.arrays.result, expected, 'Rounding operations on a single DEF');
 });
+
+test('Single DEF, DEG2RAD & RAD2DEG operators', function () {
+  var config_string = (
+    "/usr/bin/rrdtool graph example.png \\\n" +
+    "DEF:rrd1=\"rrd1\":long:AVERAGE \\\n" +
+    "CDEF:result=rrd1,DEG2RAD,RAD2DEG \\\n"
+  );
+
+  var data = createDataFromConfig(config_string);
+
+  var expected = [
+    {t:1340474100000,v:-5},
+    {t:1340474400000,v:-4},
+    {t:1340474700000,v:-3},
+    {t:1340475000000,v:-2},
+    {t:1340475300000,v:-1},
+    {t:1340475600000,v:0},
+    {t:1340475900000,v:1},
+    {t:1340476200000,v:2},
+    {t:1340476500000,v:3},
+    {t:1340476800000,v:4},
+    {t:1340477100000,v:5},
+  ];
+
+  deepEqual(data.data.arrays.result, expected, 'Angle conversions on a single DEF');
+});
+
+test('Single DEF, ABS operator', function () {
+  var config_string = (
+    "/usr/bin/rrdtool graph example.png \\\n" +
+    "DEF:rrd1=\"rrd1\":long:AVERAGE \\\n" +
+    "CDEF:result=rrd1,ABS \\\n"
+  );
+
+  var data = createDataFromConfig(config_string);
+
+  var expected = [
+    {t:1340474100000,v:5},
+    {t:1340474400000,v:4},
+    {t:1340474700000,v:3},
+    {t:1340475000000,v:2},
+    {t:1340475300000,v:1},
+    {t:1340475600000,v:0},
+    {t:1340475900000,v:1},
+    {t:1340476200000,v:2},
+    {t:1340476500000,v:3},
+    {t:1340476800000,v:4},
+    {t:1340477100000,v:5},
+  ];
+
+  deepEqual(data.data.arrays.result, expected, 'Absolute values from a single DEF');
+});
+
+test('Single DEF, UNKN operator', function () {
+  var config_string = (
+    "/usr/bin/rrdtool graph example.png \\\n" +
+    "DEF:rrd1=\"rrd1\":long:AVERAGE \\\n" +
+    "CDEF:result=rrd1,UNKN,+ \\\n"
+  );
+
+  var data = createDataFromConfig(config_string);
+
+  var expected = [
+    {t:1340474100000,v:NaN},
+    {t:1340474400000,v:NaN},
+    {t:1340474700000,v:NaN},
+    {t:1340475000000,v:NaN},
+    {t:1340475300000,v:NaN},
+    {t:1340475600000,v:NaN},
+    {t:1340475900000,v:NaN},
+    {t:1340476200000,v:NaN},
+    {t:1340476500000,v:NaN},
+    {t:1340476800000,v:NaN},
+    {t:1340477100000,v:NaN},
+  ];
+
+  deepEqual(data.data.arrays.result, expected, 'Add an unknown value to a single DEF');
+});
+
+test('Single DEF, INF operator', function () {
+  var config_string = (
+    "/usr/bin/rrdtool graph example.png \\\n" +
+    "DEF:rrd1=\"rrd1\":long:AVERAGE \\\n" +
+    "CDEF:result=rrd1,INF,+ \\\n"
+  );
+
+  var data = createDataFromConfig(config_string);
+
+  var expected = [
+    {t:1340474100000,v:Number.POSITIVE_INFINITY},
+    {t:1340474400000,v:Number.POSITIVE_INFINITY},
+    {t:1340474700000,v:Number.POSITIVE_INFINITY},
+    {t:1340475000000,v:Number.POSITIVE_INFINITY},
+    {t:1340475300000,v:Number.POSITIVE_INFINITY},
+    {t:1340475600000,v:Number.POSITIVE_INFINITY},
+    {t:1340475900000,v:Number.POSITIVE_INFINITY},
+    {t:1340476200000,v:Number.POSITIVE_INFINITY},
+    {t:1340476500000,v:Number.POSITIVE_INFINITY},
+    {t:1340476800000,v:Number.POSITIVE_INFINITY},
+    {t:1340477100000,v:Number.POSITIVE_INFINITY},
+  ];
+
+  deepEqual(data.data.arrays.result, expected, 'Add positive infinity to a single DEF');
+});
+
+test('Single DEF, NEGINF operator', function () {
+  var config_string = (
+    "/usr/bin/rrdtool graph example.png \\\n" +
+    "DEF:rrd1=\"rrd1\":long:AVERAGE \\\n" +
+    "CDEF:result=rrd1,NEGINF,+ \\\n"
+  );
+
+  var data = createDataFromConfig(config_string);
+
+  var expected = [
+    {t:1340474100000,v:Number.NEGATIVE_INFINITY},
+    {t:1340474400000,v:Number.NEGATIVE_INFINITY},
+    {t:1340474700000,v:Number.NEGATIVE_INFINITY},
+    {t:1340475000000,v:Number.NEGATIVE_INFINITY},
+    {t:1340475300000,v:Number.NEGATIVE_INFINITY},
+    {t:1340475600000,v:Number.NEGATIVE_INFINITY},
+    {t:1340475900000,v:Number.NEGATIVE_INFINITY},
+    {t:1340476200000,v:Number.NEGATIVE_INFINITY},
+    {t:1340476500000,v:Number.NEGATIVE_INFINITY},
+    {t:1340476800000,v:Number.NEGATIVE_INFINITY},
+    {t:1340477100000,v:Number.NEGATIVE_INFINITY},
+  ];
+
+  deepEqual(data.data.arrays.result, expected, 'Add negative infinity to a single DEF');
+});
+
+test('Single DEF, COUNT operator', function () {
+  var config_string = (
+    "/usr/bin/rrdtool graph example.png \\\n" +
+    "DEF:rrd1=\"rrd1\":long:AVERAGE \\\n" +
+    "CDEF:result=rrd1,COUNT \\\n"
+  );
+
+  var data = createDataFromConfig(config_string);
+
+  var expected = [
+    {t:1340474100000,v:1},
+    {t:1340474400000,v:2},
+    {t:1340474700000,v:3},
+    {t:1340475000000,v:4},
+    {t:1340475300000,v:5},
+    {t:1340475600000,v:6},
+    {t:1340475900000,v:7},
+    {t:1340476200000,v:8},
+    {t:1340476500000,v:9},
+    {t:1340476800000,v:10},
+    {t:1340477100000,v:11},
+  ];
+
+  deepEqual(data.data.arrays.result, expected, 'Count values in a single DEF');
+});
+
+test('Single DEF, DUP operator', function () {
+  var config_string = (
+    "/usr/bin/rrdtool graph example.png \\\n" +
+    "DEF:rrd1=\"rrd1\":long:AVERAGE \\\n" +
+    "CDEF:result=rrd1,DUP,+ \\\n"
+  );
+
+  var data = createDataFromConfig(config_string);
+
+  var expected = [
+    {t:1340474100000,v:-10},
+    {t:1340474400000,v:-8},
+    {t:1340474700000,v:-6},
+    {t:1340475000000,v:-4},
+    {t:1340475300000,v:-2},
+    {t:1340475600000,v:0},
+    {t:1340475900000,v:2},
+    {t:1340476200000,v:4},
+    {t:1340476500000,v:6},
+    {t:1340476800000,v:8},
+    {t:1340477100000,v:10},
+  ];
+
+  deepEqual(data.data.arrays.result, expected, 'Duplicate the top value on the stack');
+});
+
+test('Single DEF, POP operator', function () {
+  var config_string = (
+    "/usr/bin/rrdtool graph example.png \\\n" +
+    "DEF:rrd1=\"rrd1\":long:AVERAGE \\\n" +
+    "CDEF:result=rrd1,rrd1,rrd1,+,POP \\\n"
+  );
+
+  var data = createDataFromConfig(config_string);
+
+  var expected = [
+    {t:1340474100000,v:-5},
+    {t:1340474400000,v:-4},
+    {t:1340474700000,v:-3},
+    {t:1340475000000,v:-2},
+    {t:1340475300000,v:-1},
+    {t:1340475600000,v:0},
+    {t:1340475900000,v:1},
+    {t:1340476200000,v:2},
+    {t:1340476500000,v:3},
+    {t:1340476800000,v:4},
+    {t:1340477100000,v:5},
+  ];
+
+  deepEqual(data.data.arrays.result, expected, 'Pop the top value on the stack');
+});
+
+test('Single DEF, EXC operator', function () {
+  var config_string = (
+    "/usr/bin/rrdtool graph example.png \\\n" +
+    "DEF:rrd1=\"rrd1\":long:AVERAGE \\\n" +
+    "CDEF:result=rrd1,1,EXC,+ \\\n"
+  );
+
+  var data = createDataFromConfig(config_string);
+
+  var expected = [
+    {t:1340474100000,v:-4},
+    {t:1340474400000,v:-3},
+    {t:1340474700000,v:-2},
+    {t:1340475000000,v:-1},
+    {t:1340475300000,v:0},
+    {t:1340475600000,v:1},
+    {t:1340475900000,v:2},
+    {t:1340476200000,v:3},
+    {t:1340476500000,v:4},
+    {t:1340476800000,v:5},
+    {t:1340477100000,v:6},
+  ];
+
+  deepEqual(data.data.arrays.result, expected, 'Switch the top values on the stack');
+});

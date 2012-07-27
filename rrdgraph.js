@@ -474,6 +474,10 @@ RRDGraph = {};
     'ATAN2': function (a, b) { return Math.atan2(a, b); },
     'FLOOR': function (a) { return Math.floor(a); },
     'CEIL': function (a) { return Math.ceil(a); },
+    'DEG2RAD': function (a) { return a * Math.PI / 180.0; },
+    'RAD2DEG': function (a) { return a * 180 / Math.PI; },
+    'ABS': function (a) { return Math.abs(a); },
+
 
 
     'IF': function (stack) {
@@ -747,7 +751,54 @@ RRDGraph = {};
     'CEIL': function (stack) {
       operation_template.unary(stack, 'CEIL');
     },
+    'DEG2RAD': function (stack) {
+      operation_template.unary(stack, 'DEG2RAD');
+    },
+    'RAD2DEG': function (stack) {
+      operation_template.unary(stack, 'RAD2DEG');
+    },
+    'ABS': function (stack) {
+      operation_template.unary(stack, 'ABS');
+    },
 
+    'UNKN': function (stack) {
+      stack.push(NaN);
+    },
+    'INF': function (stack) {
+      stack.push(Number.POSITIVE_INFINITY);
+    },
+    'NEGINF': function (stack) {
+      stack.push(Number.NEGATIVE_INFINITY);
+    },
+    'COUNT': function (stack) {
+      var a = stack.pop();
+      var a_is_number = !(a instanceof Array);
+      if (a_is_number) {
+        return 1;
+      } else {
+        var result = [];
+        for (var i = 0, l = a.length; i < l; ++i) {
+          result.push({
+            t: a[i].t,
+            v: i + 1
+          });
+        }
+        stack.push(result);
+      }
+    },
+
+    'DUP': function (stack) {
+      stack.push(stack.slice(-1)[0]);
+    },
+    'POP': function (stack) {
+      stack.pop();
+    },
+    'EXC': function (stack) {
+      var b = stack.pop();
+      var a = stack.pop();
+      stack.push(b);
+      stack.push(a);
+    },
   };
 
   Data.prototype.push = function (points) {
