@@ -663,7 +663,7 @@ RRDGraph = {};
 
         stack.push(result);
       }
-    },
+    }
   };
 
   var RPN = {
