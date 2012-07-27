@@ -149,7 +149,7 @@ RRDGraph = {};
           'watermark' : {
             'family': 'monospace',
             'size': 8
-          },
+          }
         },
         'pango-markup'      : false,
         'graph-render-mode' : 'normal',
@@ -348,7 +348,7 @@ RRDGraph = {};
 
     cast_options(result.options, parseInt, [
       'step', 'width', 'height', 'units-exponent', 'units-length', 'border',
-      'tabwidth', 'base', 
+      'tabwidth', 'base'
     ]);
 
     cast_options(result.options, parseFloat, ['upper-limit', 'lower-limit', 'zoom']);
@@ -552,8 +552,7 @@ RRDGraph = {};
 
         stack.push(result);
       }
-    },
-
+    }
   };
 
   var operation_template = {
@@ -798,7 +797,7 @@ RRDGraph = {};
       var a = stack.pop();
       stack.push(b);
       stack.push(a);
-    },
+    }
   };
 
   Data.prototype.push = function (points) {
