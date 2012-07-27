@@ -415,12 +415,348 @@ RRDGraph = {};
     }
   };
 
+
+  /* RPN --------------------------------------------------------------------*/
+  var operation = {
+    'LT': function (a, b) { return +(a < b); },
+    'GT': function (a, b) { return +(a > b); },
+    'LE': function (a, b) { return +(a <= b); },
+    'GE': function (a, b) { return +(a >= b); },
+    'EQ': function (a, b) { return +(a === b); },
+    'NE': function (a, b) { return +(a !== b); },
+    'UN': function (a) { return +(isNaN(a)); },
+    'ISINF': function (a) { return +(a == Number.POSITIVE_INFINITY || a == Number.NEGATIVE_INFINITY); },
+
+    'MIN': function (a, b) {
+      if (isNaN(a) || isNaN(a)) {
+        return NaN;
+      } if (a > b) {
+        return b;
+      } else {
+        return a;
+      }
+    },
+    'MAX': function (a, b) {
+      if (isNaN(a) || isNaN(a)) {
+        return NaN;
+      } if (a > b) {
+        return a;
+      } else {
+        return b;
+      }
+    },
+    
+    '+': function (a, b) { return a + b; },
+    '*': function (a, b) { return a * b; },
+    '-': function (a, b) { return a - b; },
+    '/': function (a, b) { return a / b; },
+    '%': function (a, b) { return a % b; },
+    'ADDNAN': function (a, b) {
+      var a_is_nan = isNaN(a);
+      var b_is_nan = isNaN(b);
+
+      if (!a_is_nan && b_is_nan) {
+        return a;
+      } else if (a_is_nan && !b_is_nan) {
+        return b;
+      } else if (a_is_nan && b_is_nan) {
+        return NaN;
+      } else {
+        return a + b;
+      }
+    },
+    'SIN': function (a) { return Math.sin(a); },
+    'COS': function (a) { return Math.cos(a); },
+    'LOG': function (a) { return Math.log(a); },
+    'EXP': function (a) { return Math.exp(a); },
+    'SQRT': function (a) { return Math.sqrt(a); },
+    'ATAN': function (a) { return Math.atan(a); },
+    'ATAN2': function (a, b) { return Math.atan2(a, b); },
+    'FLOOR': function (a) { return Math.floor(a); },
+    'CEIL': function (a) { return Math.ceil(a); },
+
+
+    'IF': function (stack) {
+      var c = stack.pop();
+      var b = stack.pop();
+      var a = stack.pop();
+      var a_is_number = !(a instanceof Array);
+      var b_is_number = !(b instanceof Array);
+      var c_is_number = !(c instanceof Array);
+
+      if (a_is_number) {
+        if (a !== 0) {
+          stack.push(b);
+        } else {
+          stack.push(c);
+        }
+      } else {
+        var result = [];
+        if (b_is_number && c_is_number) {
+          for (var i = 0, l = a.length; i < l; ++i) {
+            result[i] = {
+              t: a[i].t,
+              v: (a[i].v !== 0) ? b : c
+            };
+          }
+        } else if (b_is_number && !c_is_number) {
+          for (var i = 0, l = a.length; i < l; ++i) {
+            result[i] = {
+              t: a[i].t,
+              v: (a[i].v !== 0) ? b : c[i].v
+            };
+          }
+        } else if (!b_is_number && c_is_number) {
+          for (var i = 0, l = a.length; i < l; ++i) {
+            result[i] = {
+              t: a[i].t,
+              v: (a[i].v !== 0) ? b[i].v : c
+            };
+          }
+        } else {
+          for (var i = 0, l = a.length; i < l; ++i) {
+            result[i] = {
+              t: a[i].t,
+              v: (a[i].v !== 0) ? b[i].v : c[i].v
+            };
+          }
+        }
+
+        stack.push(result);
+      }
+    },
+
+    'LIMIT': function (stack) {
+      var c = stack.pop();
+      var b = stack.pop();
+      var a = stack.pop();
+      var a_is_number = !(a instanceof Array);
+      var b_is_number = !(b instanceof Array);
+      var c_is_number = !(c instanceof Array);
+
+      // TODO: b and c being (C)DEF, not numbers
+      if (a_is_number && a >= b && a <= c) {
+        stack.push(a);
+      } else {
+        var result = [];
+        for (var i = 0, l = a.length; i < l; ++i) {
+          result[i] = {
+            t: a[i].t,
+            v: (a[i].v >= b && a[i].v <= c) ? a[i].v : NaN
+          };
+        }
+
+        stack.push(result);
+      }
+    },
+
+  };
+
+  var operation_template = {
+    commutativeBinary: function (stack, operator) {
+      var b = stack.pop();
+      var a = stack.pop();
+      var a_is_number = !(a instanceof Array);
+      var b_is_number = !(b instanceof Array);
+      var op = operation[operator];
+
+      if (a_is_number && b_is_number) {
+        stack.push(op(a, b));
+      } else if (!a_is_number && !b_is_number) {
+        if (a.length !== b.length) {
+          throw 'DEFs have differing number of elements';
+          // TODO: this may not be an error, not sure yet
+        }
+        
+        var result = [];
+        for (var i = 0, l = a.length; i < l; ++i) {
+          result[i] = {
+            t: a[i].t,
+            v: op(a[i].v, b[i].v)
+          };
+        }
+
+        stack.push(result);
+      } else {
+        if (a_is_number) {
+          var temp = a;
+          a = b;
+          b = temp;
+        }
+
+        var result = [];
+        for (var i = 0, l = a.length; i < l; ++i) {
+          result[i] = {
+            t: a[i].t,
+            v: op(a[i].v, b)
+          };
+        }
+
+        stack.push(result);
+      }
+    },
+
+    nonCommutativeBinary: function (stack, operator) {
+      var b = stack.pop();
+      var a = stack.pop();
+      var a_is_number = !(a instanceof Array);
+      var b_is_number = !(b instanceof Array);
+      var op = operation[operator];
+
+      if (a_is_number && b_is_number) {
+        stack.push(op(a, b));
+      } else if (!a_is_number && !b_is_number) {
+        if (a.length !== b.length) {
+          throw 'DEFs have differing number of elements';
+          // TODO: this may not be an error, not sure yet
+        }
+
+        var result = [];
+        for (var i = 0, l = a.length; i < l; ++i) {
+          result[i] = {
+            t: a[i].t,
+            v: op(a[i].v, b[i].v)
+          };
+        }
+
+        stack.push(result);
+      } else {
+        var result = [];
+        if (b_is_number) {
+          for (var i = 0, l = a.length; i < l; ++i) {
+            result[i] = {
+              t: a[i].t,
+              v: op(a[i].v, b)
+            };
+          }
+        } else { // a is number
+          for (var i = 0, l = b.length; i < l; ++i) {
+            result[i] = {
+              t: b[i].t,
+              v: op(a, b[i].v)
+            };
+          }
+        }
+
+        stack.push(result);
+      }
+    },
+
+    unary: function (stack, operator) {
+      var a = stack.pop();
+      var a_is_number = !(a instanceof Array);
+      var op = operation[operator];
+
+      if (a_is_number) {
+        stack.push(0);
+      } else {
+        var result = [];
+        for (var i = 0, l = a.length; i < l; ++i) {
+          result[i] = {
+            t: a[i].t,
+            v: op(a[i].v)
+          };
+        }
+
+        stack.push(result);
+      }
+    },
+  };
+
+  var RPN = {
+    'LT': function (stack) {
+      operation_template.nonCommutativeBinary(stack, 'LT');
+    },
+    'LE': function (stack) {
+      operation_template.nonCommutativeBinary(stack, 'LE');
+    },
+    'GT': function (stack) {
+      operation_template.nonCommutativeBinary(stack, 'GT');
+    },
+    'GE': function (stack) {
+      operation_template.nonCommutativeBinary(stack, 'GE');
+    },
+    'EQ': function (stack) {
+      operation_template.commutativeBinary(stack, 'EQ');
+    },
+    'NE': function (stack) {
+      operation_template.commutativeBinary(stack, 'NE');
+    },
+    'UN': function (stack) {
+      operation_template.unary(stack, 'UN');
+    },
+    'ISINF': function (stack) {
+      operation_template.unary(stack, 'ISINF');
+    },
+    'IF': function (stack) {
+      operation['IF'](stack);
+    },
+
+    'MIN': function (stack) {
+      operation_template.commutativeBinary(stack, 'MIN');
+    },
+    'MAX': function (stack) {
+      operation_template.commutativeBinary(stack, 'MAX');
+    },
+    'LIMIT': function (stack) {
+      operation['LIMIT'](stack);
+    },
+
+    '+': function (stack) {
+      operation_template.commutativeBinary(stack, '+');
+    },
+    '*': function (stack) {
+      operation_template.commutativeBinary(stack, '*');
+    },
+    '-': function (stack) {
+      operation_template.nonCommutativeBinary(stack, '-');
+    },
+    '/': function (stack) {
+      operation_template.nonCommutativeBinary(stack, '/');
+    },
+    '%': function (stack) {
+      operation_template.nonCommutativeBinary(stack, '%');
+    },
+    'ADDNAN': function (stack) {
+      operation_template.commutativeBinary(stack, 'ADDNAN');
+    },
+    'SIN': function (stack) {
+      operation_template.unary(stack, 'SIN');
+    },
+    'COS': function (stack) {
+      operation_template.unary(stack, 'COS');
+    },
+    'LOG': function (stack) {
+      operation_template.unary(stack, 'LOG');
+    },
+    'EXP': function (stack) {
+      operation_template.unary(stack, 'EXP');
+    },
+    'SQRT': function (stack) {
+      operation_template.unary(stack, 'SQRT');
+    },
+    'ATAN': function (stack) {
+      operation_template.unary(stack, 'ATAN');
+    },
+    'ATAN2': function (stack) {
+      operation_template.nonCommutativeBinary(stack, 'ATAN2');
+    },
+    'FLOOR': function (stack) {
+      operation_template.unary(stack, 'FLOOR');
+    },
+    'CEIL': function (stack) {
+      operation_template.unary(stack, 'CEIL');
+    },
+
+  };
+
   Data.prototype.push = function (points) {
     this.extremes.x.min = Number.POSITIVE_INFINITY;
     this.extremes.x.max = Number.NEGATIVE_INFINITY;
     this.extremes.y.min = Number.POSITIVE_INFINITY;
     this.extremes.y.max = Number.NEGATIVE_INFINITY;
 
+    var temp_defs = {};
     for (var name in points) {
       var defs = [];
       for (var d in this.config.defs.data) {
@@ -431,30 +767,55 @@ RRDGraph = {};
       }
 
       for (var d = 0; d < defs.length; ++d) {
+        temp_defs[defs[d]] = [];
         for (var p = 0, len = points[name].length; p < len; ++p) {
           this.data.arrays[defs[d]].push(points[name][p]);
+          temp_defs[defs[d]].push(points[name][p]);
         }
       }
     }
 
-    // TODO: update cdefs, vdefs
+    var temp_cdefs = {};
 
-    var domain_length = this.src.end - this.src.start;
+    for (var cdef in this.config.defs.calc) {
+      var rpn = this.config.defs.calc[cdef].split(',');
+      var stack = [];
+
+      while (rpn.length > 0) {
+        var element = rpn.shift();
+        if (isNaN(element)) {
+          if (element in temp_defs) { // DEF
+            stack.push(temp_defs[element]);
+          } else if (element in temp_cdefs) { // CDEF
+            stack.push(temp_cdefs[element]);
+          } else { // operator
+            RPN[element](stack);
+          }
+        } else { // number
+          stack.push(+element);
+        }
+      }
+
+      if (stack.length > 1 || !(stack[0] instanceof Array)) {
+        throw 'Bad RPN in CDEF named ' + cdef;
+      }
+
+      temp_cdefs[cdef] = stack[0];
+    }
+
+    for (var cdef in temp_cdefs) {
+      var result = this.data.arrays[cdef];
+      result.push.apply(result, temp_cdefs[cdef]);
+    }
+
+    // TODO: update vdefs
+
     for (var d in this.data.arrays) {
       var def = this.data.arrays[d];
 
-      /* // Don't remove old data
-      if (def.length > 1) {
-        // Remove all but one element outside the graph (one is left for interpolation)
-        while (def[1].t <= def[def.length - 1].t - domain_length) {
-         def.shift();
-        }
-      }
-      */
-
       // Value extremes, remove NaNs
       for (var p = 0, len = def.length; p < len; ++p) {
-        if (def[p].v === null) {
+        if (isNaN(def[p].v)) {
           continue;
         }
         if (def[p].v > this.extremes.y.max) this.extremes.y.max = def[p].v;
@@ -560,7 +921,7 @@ RRDGraph = {};
       if (e.type === 'line' || e.type === 'area') {
         var shape = this.graph_elements[g] = d3.svg[e.type]().
           x(function (d) { return scales.x(new Date(d.t)) }).
-          defined(function (d) { return d.v !== null; }).
+          defined(function (d) { return !isNaN(d.v); }).
           interpolate('linear');
 
         if (e.type === 'line') {
