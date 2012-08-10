@@ -355,7 +355,7 @@ RRDGraph = {};
   };
 
   legend = [
-    {content: [], align: 'left'},
+    {content: [], align: 'left'}
   ];
 
   var NO_FOLLOWING_SPACES = '\\n\\l\\r\\c\\j\\g\\u';
@@ -396,7 +396,7 @@ RRDGraph = {};
     '\\l': 'left',
     '\\r': 'right',
     '\\c': 'center',
-    '\\j': 'justify',
+    '\\j': 'justify'
   };
   var PRINT_FORMAT = /%(\d*)[.]?(\d*)l([ef]{1})[%]?([sS]?)/;
 
@@ -1004,7 +1004,7 @@ RRDGraph = {};
       }
       var time = (array.slice(-1)[0].t - array[0].t) / 1000;
       return {t: time , v: result};
-    },
+    }
   };
 
   Data.prototype.push = function (points) {
