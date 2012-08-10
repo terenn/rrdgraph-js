@@ -1,0 +1,15 @@
+15.08:
+  1)  VDEFS:
+        PERCENT, PERCENTNAN
+        LSLSLOPE, LSLINT, LSLCORREL
+
+  2)  HRULE, VRULE, TICK
+  3)  STACK
+  4)  integrate with Markus's NRT jsp (only need to get config and data)
+
+20.08:
+  1)  fix bugs
+  2)  tweak legend/axes/grid
+  3)  maybe tooltip
+  4)  reread code and comment anything not immediately understandable
+  5)  write a readme + howto
