@@ -101,7 +101,7 @@ AREA:cdefbd#FFAB00FF:"Cogent S25":STACK \
 GPRINT:cdefbd:LAST:"    Current\:%8.2lf %s"  \
 GPRINT:cdefbd:AVERAGE:"Average\:%8.2lf %s"  \
 GPRINT:cdefbd:MAX:"Maximum\:%8.2lf %s\n"  \
-COMMENT:"--- OUT ---\n"  \
+COMMENT:"--- OUT ---\l"  \
 LINE2:cdefbi#F9FD5FFF:"Linx (STV) S14"  \
 GPRINT:cdefbi:LAST:"Current\:%8.2lf %s"  \
 GPRINT:cdefbi:AVERAGE:"Average\:%8.2lf %s"  \
@@ -138,7 +138,8 @@ GPRINT:cdefda:MAX:"Maximum\:%8.2lf %s\n"
     res_el.innerHTML = '';
 
     var def = def_el.value;
-    var res = new RRDGraph.Config(null, def);
+    var res = window.res = new RRDGraph.Config(null, def);
+    
 
     res_el.innerHTML = JSON.stringify(res, null, 2);
   };

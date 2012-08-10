@@ -144,7 +144,7 @@ RRDGraph = {};
           },
           'legend' : {
             'family': 'monospace',
-            'size': 10
+            'size': 11
           },
           'watermark' : {
             'family': 'monospace',
@@ -163,10 +163,7 @@ RRDGraph = {};
         value: {},
         calc: {}
       },
-      graphs: {
-        textalign: 'justified',
-        elements: []
-      }
+      graphs: []
     };
 
     var tokens = tokenize(config_string);
@@ -263,7 +260,8 @@ RRDGraph = {};
           element.vname = subtokens[1];
           element.offset = subtokens[2];
         } else if (subtokens[0] === 'TEXTALIGN') {
-          result.graphs.textalign = subtokens[1];
+          element.type = 'textalign';
+          element.textalign = subtokens[1];
         } else if (subtokens[0] === 'TICK') {
           element.type = 'tick';
 
@@ -303,11 +301,11 @@ RRDGraph = {};
 
           if (key_color.length === 2) {
             element.color = key_color[1];
-          } else {
-            element.color = '000000';
           }
 
-          if (subtokens.length >= 3) { // legend
+          if (subtokens.length == 3 && subtokens[2] === 'STACK') {
+            element.stack = true;
+          } else if (subtokens.length >= 3) { // legend
             element.legend = subtokens[2];
 
             for (var st = 3, sl = subtokens.length; st < sl; ++st) {
@@ -341,7 +339,7 @@ RRDGraph = {};
         }
 
         if (element.type !== null) {
-          result.graphs.elements.push(element);
+          result.graphs.push(element);
         }
       }
     }
@@ -356,6 +354,153 @@ RRDGraph = {};
     return result;
   };
 
+  legend = [
+    {content: [], align: 'left'},
+  ];
+
+  var NO_FOLLOWING_SPACES = '\\n\\l\\r\\c\\j\\g\\u';
+  var splitElementString = function (s) {
+    var at = 0;
+    var result = [];
+
+    while (s.length) {
+      var next_slash = s.indexOf('\\', at);
+      if (next_slash !== -1) {
+        if (s.charAt(next_slash + 1) !== '\\') {
+          result.push(s.slice(0, next_slash));
+          result.push(s.slice(next_slash, next_slash + 2));
+          s = s.slice(next_slash + 2);
+          at = 0;
+        } else {
+          at = next_slash + 2;
+        }
+      } else {
+        result.push(s);
+        break;
+      }
+    }
+    
+    // two spaces after every element unless \g
+    var last = result.length - 1;
+    if (NO_FOLLOWING_SPACES.indexOf(result[last]) === -1) {
+      result[last] = result[last] + '  ';
+    }
+
+
+    return result;
+  };
+
+  var LINE_ENDS = '\\n\\l\\r\\c\\j';
+  var ALIGN = {
+    '\\n': 'left',
+    '\\l': 'left',
+    '\\r': 'right',
+    '\\c': 'center',
+    '\\j': 'justify',
+  };
+  var PRINT_FORMAT = /%(\d*)[.]?(\d*)l([ef]{1})[%]?([sS]?)/;
+
+  var createLegendTemplate = function (config) { // TODO: hrule|vrule|tick|etc
+    config.legend = [];
+
+    var next_line = {content: [], align: 'left', position: 0};
+    var graphs = config.graphs;
+
+    for (var i = 0, len = graphs.length; i < len; ++i) {
+      var g = graphs[i];
+      if (g.type === 'comment') {
+        var parts = splitElementString(g.text);
+        while (parts.length) {
+          var part = parts.shift();
+          if (LINE_ENDS.indexOf(part) !== -1) {
+            next_line.align = ALIGN[part];
+            config.legend.push(next_line);
+            next_line = {content: [], align: 'left', position: next_line.position + 1};
+          } else if (part === '\\u') {
+            next_line.position--;
+          } else {
+            next_line.content.push(part);
+          }
+        }
+      } else if (g.type === 'line' || g.type === 'area') {
+        if (g.color) {
+          next_line.content.push({type: 'box', color: g.color});
+          if (g.legend) {
+            next_line.content.push(g.legend + '  ');
+          }
+        }
+      } else if (g.type === 'gprint') {
+        var vname = g.vname;
+        if (!(vname in config.defs.value)) { // DEF or CDEF: old style
+          // we need to define an internal VDEF
+          var cf = g.cf;
+          cf = cf.replace('MAX', 'MAXIMUM');
+          cf = cf.replace('MIN', 'MINIMUM');
+
+          vname = '_internal_' + g.vname + '_' + cf;
+          config.defs.value[vname] = g.vname + ',' + cf;
+        }
+
+        var parts = splitElementString(g.format);
+        while (parts.length) {
+          var part = parts.shift();
+          if (LINE_ENDS.indexOf(part) !== -1) {
+            next_line.align = ALIGN[part];
+            config.legend.push(next_line);
+            next_line = {content: [], align: 'left', position: next_line.position + 1};
+          } else if (part === '\\u') {
+            next_line.position--;
+          } else {
+            part = part.replace(' %s', '%s');
+            part = part.replace(' %S', '%S');
+            
+            var r = PRINT_FORMAT.exec(part);
+            if (r !== null) {
+              if (r.index > 0) {
+                var text = part.slice(0, r.index);
+                text = text.replace('%%', '%');
+                next_line.content.push(text);
+              }
+              
+              var next_var = {vname: vname};
+              if (r[1] !== "") {
+                next_var.width = +r[1];
+              }
+              if (r[2] !== "") {
+                next_var.decimals = +r[2];
+              }
+              if (r[3] === 'e') {
+                next_var.type = 'exponential';
+              } else {
+                next_var.type = 'float';
+              }
+              if (r[4] === 's') {
+                next_var.si = true;
+              } else if (r[4] === 'S') {
+                next_var.si = 'same';
+              }
+              next_line.content.push(next_var);
+
+              var end = r.index + r[0].length;
+              if (end < part.length - 1) {
+                var text = part.slice(end);
+                text = text.replace('%%', '%');
+                next_line.content.push(text);
+              }
+            } else {
+              throw "bad format for GPRINT in '" + g.format + "'";
+            }
+          }
+        }
+      }
+    }
+    if (next_line.content.length) {
+      next_line.align = 'left';
+      config.legend.push(next_line);
+      next_line = {content: [], align: 'left', position: next_line.position + 1};
+    }
+  };
+
   RRDGraph.Config = function (src, config_string) {
     if (src) {
       config_string = RRDGraph.get.config(src);
@@ -365,6 +510,8 @@ RRDGraph = {};
     this.options = config.options;
     this.defs = config.defs;
     this.graphs = config.graphs;
+
+    createLegendTemplate(this);
   };
 })();
 
@@ -402,7 +549,6 @@ RRDGraph = {};
     for (var vdef in this.config.defs.value) {
       this.data.values[vdef] = {t: NaN, v: NaN};
     }
-
   };
 
   Data.prototype.addListener = function (graph) {
@@ -414,7 +560,6 @@ RRDGraph = {};
       this.listeners[l].update();
     }
   };
-
 
   /* RPN --------------------------------------------------------------------*/
   var operation = {
@@ -800,6 +945,68 @@ RRDGraph = {};
     }
   };
 
+  var VDEF_RPN = {
+    'MAXIMUM': function (array) {
+      var result = array[0];
+      for (var i = 1, len = array.length; i < len; ++i) {
+        var value = array[i];
+        if (value.v > result.v) {
+          result = value;
+        }
+      }
+      return result;
+    },
+    'MINIMUM': function (array) {
+      var result = array[0];
+      for (var i = 1, len = array.length; i < len; ++i) {
+        var value = array[i];
+        if (value.v < result.v) {
+          result = value;
+        }
+      }
+      return result;
+    },
+    'AVERAGE': function (array) {
+      var result = 0;
+      for (var i = 0, len = array.length; i < len; ++i) {
+        var value = array[i];
+        result += value.v;
+      }
+      return {t: 0, v: result / array.length};
+    },
+    'STDEV': function (array) {
+      // one pass calculation
+      // http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#On-line_algorithm
+      var m = 0;
+      var m2 = 0;
+      var len = array.length;
+
+      for (var i = 0; i < len; ++i) {
+        var v = array[i].v;
+        var d = v - m;
+        m += d / (i + 1);
+        m2 += d * (v - m);
+      }
+
+      return {t: 0, v: Math.sqrt(m2 / (len - 1))};
+    },
+    'LAST': function (array) {
+      return array.slice(-1)[0];
+    },
+    'FIRST': function (array) {
+      return array[0];
+    },
+    'TOTAL': function (array) {
+      var result = 0;
+      for (var i = 0, len = array.length; i < len; ++i) {
+        var value = array[i];
+        result += value.v;
+      }
+      var time = (array.slice(-1)[0].t - array[0].t) / 1000;
+      return {t: time , v: result};
+    },
+  };
+
   Data.prototype.push = function (points) {
     this.extremes.x.min = Number.POSITIVE_INFINITY;
     this.extremes.x.max = Number.NEGATIVE_INFINITY;
@@ -858,7 +1065,32 @@ RRDGraph = {};
       result.push.apply(result, temp_cdefs[cdef]);
     }
 
-    // TODO: update vdefs
+    for (var vdef in this.config.defs.value) {
+      var expression = this.config.defs.value[vdef].split(',');
+      var array = this.data.arrays[expression[0]];
+      if (array === undefined) {
+        throw 'Bad vname "' + expression[0] + '" in VDEF named ' + vdef;
+      }
+      var result = {t: NaN, v: NaN};
+
+      if (expression.length === 3) {
+        if (expression[2] !== 'PERCENT' || expression[2] !== 'PERCENTNAN') {
+          throw 'Bad operation "' + expression[2] + '" in VDEF named ' + vdef;
+        }
+        var percent = +expression[1];
+        if (isNaN(percent) || percent < 0 || percent > 100) {
+          throw 'Bad percentage "' + expression[1] + '" in VDEF named ' + vdef;
+        }
+        
+        result = VDEF_RPN[expression[2]](array, percent);
+      } else if (expression.length === 2) {
+        result = VDEF_RPN[expression[1]](array);
+      } else {
+        throw 'Bad expression in VDEF named ' + vdef;
+      }
+
+      this.data.values[vdef] = result;
+    }
 
     for (var d in this.data.arrays) {
       var def = this.data.arrays[d];
@@ -903,6 +1135,7 @@ RRDGraph = {};
   Graph.prototype.createStatics = function () {
     var container = this.svg.container = this.element.append('svg:svg').
       attr('shape-rendering', 'crispEdges').
+      attr('xml:space', 'preserve').
       style('background-color', '#f3f3f3').
       style('border-right', this.config.options.border + 'px solid #999').
       style('border-bottom', this.config.options.border + 'px solid #999').
@@ -943,7 +1176,7 @@ RRDGraph = {};
       text(this.config.options['vertical-label']);
 
     this.svg.logo = container.append('svg:text').
-      attr('fill', '#aaa').
+      attr('fill', '#999').
       style('font', '9px monospace').
       attr('transform', 'rotate(90)').
       text('RRDGRAPH-JS / D3.JS');
@@ -966,8 +1199,8 @@ RRDGraph = {};
 
     this.graph_elements = [];
 
-    for (var g = 0, len = this.config.graphs.elements.length; g < len; ++g) {
-      var e = this.config.graphs.elements[g];
+    for (var g = 0, len = this.config.graphs.length; g < len; ++g) {
+      var e = this.config.graphs[g];
       if (e.type === 'line' || e.type === 'area') {
         var shape = this.graph_elements[g] = d3.svg[e.type]().
           x(function (d) { return scales.x(new Date(d.t)) }).
@@ -996,25 +1229,65 @@ RRDGraph = {};
     // TODO: axes, grid
   };
 
-  Graph.prototype.createLegend = function () { // TODO
+  var ALIGN_TO_ANCHOR = {
+    'left': 'start',
+    'center': 'middle',
+    'right': 'end',
+    'justify': 'start'
+  };
+
+  Graph.prototype.createLegend = function () { // TODO: better alignment
     var y = this.canvas_padding.y + this.config.options.height + 
-      this.config.options.font.axis.size + 10;
+      this.config.options.font.axis.size + 5;
+    var line_height = this.config.options.font.legend.size + 4;
 
-    var legend = this.svg.legend = this.svg.container.append('svg:rect').
-      attr('width', this.svg.container.attr('width') - 20).
-      attr('height', 30).
-      attr('x', 10).
-      attr('y', y).
-      attr('fill', '#fff').
-      append('svg:text');
+    var legend_container = this.svg.container.append('svg:g').
+      attr('transform', 'translate(0,' + y + ')');
 
-    this.svg.container.append('svg:text').
-      attr('fill', '#000').
-      attr('x', 15).
-      attr('y', y + 20).
-      text('Legend will be here');
+    var legend = [];
+    var createLine = function (n) {
+    };
 
-    return {y: y, height: 30};
+    for (var i = 0; i < this.config.legend.length; ++i) {
+      var line = this.config.legend[i];
+      if (!(line.position in legend)) {
+        legend[line.position] = legend_container.append('svg:g').
+          attr('xml:space', 'preserve').
+          attr('transform', 'translate(15,' + (line_height * (line.position + 1)) + ')');
+      }
+
+      var text = legend[line.position].append('svg:text').
+        attr('fill', '#000').
+        attr('text-anchor', ALIGN_TO_ANCHOR[line.align]).
+        attr('width', this.svg.container.attr('width') - 30).
+        style('font-size', this.config.options.font.legend.size + 'px').
+        style('font-family', this.config.options.font.legend.family);
+
+      for (var j = 0; j < line.content.length; ++j) {
+        var element = line.content[j];
+        if (typeof element === 'string') {
+          text.append('svg:tspan').text(element).
+            attr('xml:space', 'preserve');
+        } else {
+          if (element.type === 'box') {
+            text.append('svg:tspan').text("\u25A0 ").
+              attr('fill', element.color).
+              attr('stroke', '#000').
+              attr('xml:space', 'preserve').
+              attr('stroke-width', '0.75').
+              attr('stroke-linecap', 'square');
+          } else if (element.type === 'float' || element.type === 'exponential') {
+            text.append('svg:tspan').
+              attr('xml:space', 'preserve').
+              attr('id', 'tspan_' + i + '_' + j);
+          }
+        }
+      }
+    }
+
+    var total_line_height = (legend.length) * line_height;
+
+    return {y: y, height: total_line_height};
   };
 
   Graph.prototype.adjustDimensionsAndPositions = function () {
@@ -1237,8 +1510,8 @@ RRDGraph = {};
 
 
     // TODO: lines and areas only ATM
-    for (var g = 0, len = this.config.graphs.elements.length; g < len; ++g) {
-      var e = this.config.graphs.elements[g];
+    for (var g = 0, len = this.config.graphs.length; g < len; ++g) {
+      var e = this.config.graphs[g];
       if (e.type === 'line' || e.type === 'area') {
         var shape = this.graph_elements[g];
         this.svg.middle_layer.selectAll('path.' + e.type + '-' + g).
@@ -1247,6 +1520,31 @@ RRDGraph = {};
       }
     }
 
+    for (var i = 0; i < this.config.legend.length; ++i) {
+      var line = this.config.legend[i];
+      for (var j = 0; j < line.content.length; ++j) {
+        var element = line.content[j];
+        if (typeof element === 'object') {
+          if (element.type === 'float') {
+            var value = this.data.data.values[element.vname].v;
+            var text = value.toFixed(element.decimals);
+            while (text.length < element.width) {
+              text = ' ' + text;
+            }
+            this.svg.container.select('#tspan_' + i + '_' + j).
+              text(text);
+          } else if (element.type === 'exponential') {
+            var value = this.data.data.values[element.vname].v;
+            var text = value.toExponential(element.decimals);
+            while (text.length < element.width) {
+              text = ' ' + text;
+            }
+            this.svg.container.select('#tspan_' + i + '_' + j).
+              text(text);
+          }
+        }
+      }
+    }
 
   };
 

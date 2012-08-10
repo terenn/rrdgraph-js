@@ -33,13 +33,13 @@
       "--vertical-label=\"C\" \\\n" +
       "--watermark=\"This is the watermark\" \\\n" +
       "DEF:b=\"example.rrd\":temp:AVERAGE \\\n" +
-      "CDEF:b1=b,1,+ \\\n" +
       "LINE1:b#009900:\"Outdoors   \"  \\\n" +
-      "LINE1:b1#990000:\"Outdoors + 1\"  \\\n" +
-      "GPRINT:b:LAST:\" Cur\:%8.2lf \"  \\\n" +
+      "GPRINT:b:LAST:\" Cur\\:%8.2lf \"  \\\n" +
       "GPRINT:b:AVERAGE:\"Avg\\:%8.2lf \"  \\\n" +
       "GPRINT:b:MIN:\"Min\\:%8.2lf \"  \\\n" +
       "GPRINT:b:MAX:\"Max\\:%8.2lf \\n\" \\\n" +
+      "CDEF:b1=b,1,+ \\\n" +
+      "LINE1:b1#990000:\"Outdoors + 1\"  \\\n" +
       "CDEF:c=b,FLOOR,b,SIN,- \\\n" +
       "LINE1:c#000099:\"Magic\" \\\n"
     );
