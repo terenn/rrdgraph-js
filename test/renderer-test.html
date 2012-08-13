@@ -8,6 +8,7 @@
 </style>
 
 <div class="rrdgraph" data-src="resourceId=test&amp;report=daily&amp;start=1340398800000&amp;end=1340485200000"></div>
+<div><button id="animate">Start/stop daily graph animation</div></div>
 <div class="rrdgraph" data-src="resourceId=test&amp;report=weekly&amp;start=1339880400000&amp;end=1340485200000"></div>
 <div class="rrdgraph" data-src="resourceId=test&amp;report=monthly&amp;start=1337893200000&amp;end=1340485200000"></div>
 <!--<div class="rrdgraph" data-src="resourceId=test&amp;report=yearly&amp;start=1308949200000&amp;end=1340485200000"></div>-->
@@ -66,9 +67,9 @@
     }
     var lastValue = lastPoint.v;
 
-    d3.select('.rrdgraph').on('click', function () {
+    d3.select('#animate').on('click', function () {
       console.log('click');
-      if (!window.interval) {
+      if (window.interval === undefined) {
         window.interval = setInterval(function () {
           lastPoint = data.slice(-1)[0];
           if (lastPoint === undefined) {
@@ -89,7 +90,8 @@
           day.data.push({"example.rrd" : [newPoint]});
         }, 100);
       } else {
-        clearInterval(window.interval);
+      clearInterval(window.interval);
+      window.interval = undefined;
         console.dir(day.data);
       }
     });

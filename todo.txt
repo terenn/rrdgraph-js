@@ -7,7 +7,6 @@
   3)  STACK
   4)  integrate with Markus's NRT jsp (only need to get config and data)
   5)  comment uninmplemented features in the legend + fallback
-  6)  option for compressing data / fixed timeframe
 
 20.08:
   1)  fix bugs

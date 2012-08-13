@@ -156,7 +156,9 @@ RRDGraph = {};
         'slope-mode'        : false,
         'tabwidth'          : 40,
         'base'              : 1000,
-        'watermark'         : ''
+        'watermark'         : '',
+        /* RRDGRAPH-js only options */
+        'compress'          : true
       },
       defs: {
         data: {},
@@ -1106,8 +1108,14 @@ RRDGraph = {};
 
       // Time extremes
       if (def.length > 0) {
+        var period = this.src.end - this.src.start;
+
         if (def[def.length - 1].t > this.extremes.x.max) this.extremes.x.max = def[def.length - 1].t;
-        if (def[0].t < this.extremes.x.min) this.extremes.x.min = def[0].t;
+        if (this.config.options.compress) {
+          if (def[0].t < this.extremes.x.min) this.extremes.x.min = def[0].t;
+        } else {
+          this.extremes.x.min = this.extremes.x.max - period;
+        }
       }
     }
 
@@ -1189,6 +1197,18 @@ RRDGraph = {};
         style('font-size', this.config.options.font.watermark.size + 'px').
         style('font-family', this.config.options.font.watermark.family);
     }
+
+    var compress_toggle_text = this.config.options.compress ? 'COMPRESS' : 'FIXED';
+    var _this = this;
+    this.svg.compress_toggle = container.append('svg:text').
+      style('font', '9px monospace').
+      text(compress_toggle_text).
+      style('cursor', 'pointer').
+      on('click', function () {
+        _this.config.options.compress ^= 1; // flip it
+        var compress_toggle_text = _this.config.options.compress ? 'COMPRESS' : 'FIXED';
+        _this.svg.compress_toggle.text(compress_toggle_text);
+      });
   };
 
   Graph.prototype.defineDynamics = function () {
@@ -1320,6 +1340,10 @@ RRDGraph = {};
     this.svg.logo.
       attr('x', 2).
       attr('y', 9 - this.svg.container.attr('width'));
+
+    this.svg.compress_toggle.
+      attr('x', 1).
+      attr('y', 10);
 
     var legend;
     if (!this.config.options['no-legend']) {
