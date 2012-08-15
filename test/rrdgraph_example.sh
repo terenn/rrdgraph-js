@@ -10,17 +10,20 @@
  --vertical-label="C" \
  --watermark="This is the watermark" \
  DEF:b="example.rrd":temp:AVERAGE \
+ CDEF:b1=b,1,+ \
+ CDEF:c=b,FLOOR,b,SIN,- \
+ CDEF:d=c,12,GT \
+ VDEF:b_avg=b,AVERAGE \
  TEXTALIGN:left \
- LINE1:b#009900:"Outdoors   "  \
+ AREA:c#000099:"Magic" \
+ LINE1:b#009900:"Outdoors "  \
  GPRINT:b:LAST:" Cur\:%8.2lf"  \
  GPRINT:b:AVERAGE:"Avg\:%8.2lf "  \
  GPRINT:b:MIN:"Min\:%8.2lf "  \
  GPRINT:b:MAX:"Max\:%8.2lf \\l" \
- CDEF:b1=b,1,+ \
- CDEF:c=b,FLOOR,b,SIN,- \
  LINE1:b1#990000:"Outdoors + 1" \
- LINE1:c#000099:"Magic" \
-
+ TICK:d#660099:0.1:">12C" \
+ HRULE:b_avg#bb4499:"Average":dashes=10,2,5,5
 
 /usr/bin/rrdtool graph reference.weekly.png \
  --slope-mode \

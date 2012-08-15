@@ -34,15 +34,20 @@
       "--vertical-label=\"C\" \\\n" +
       "--watermark=\"This is the watermark\" \\\n" +
       "DEF:b=\"example.rrd\":temp:AVERAGE \\\n" +
-      "LINE1:b#009900:\"Outdoors   \"  \\\n" +
+      "CDEF:c=b,FLOOR,b,SIN,- \\\n" +
+      "CDEF:b1=b,1,+ \\\n" +
+      "CDEF:d=c,12,GT \\\n" +
+      "VDEF:b_avg=b,AVERAGE \\\n" +
+      "AREA:c#000099:\"Magic\" \\\n" +
+      "LINE1:b#009900:\"Outdoors \"  \\\n" +
       "GPRINT:b:LAST:\" Cur\\:%8.2lf \"  \\\n" +
       "GPRINT:b:AVERAGE:\"Avg\\:%8.2lf \"  \\\n" +
       "GPRINT:b:MIN:\"Min\\:%8.2lf \"  \\\n" +
       "GPRINT:b:MAX:\"Max\\:%8.2lf \\n\" \\\n" +
-      "CDEF:b1=b,1,+ \\\n" +
       "LINE1:b1#990000:\"Outdoors + 1\"  \\\n" +
-      "CDEF:c=b,FLOOR,b,SIN,- \\\n" +
-      "LINE1:c#000099:\"Magic\" \\\n"
+      "TICK:d#660099:0.1:\">12C\" \\\n" + 
+      "HRULE:b_avg#bb4499:\"Average\":dashes=10,2,5,5 \\\n" +
+      "VRULE:1340485200000#11bbaa:\"Realtime start\" \\\n"
     );
 
   };
@@ -57,6 +62,7 @@
     var graphs = RRDGraph.init('.rrdgraph');
     var day = graphs[0];
 
+    window.day = day;
     var data = day.data.data.arrays['b'];
     var lastPoint = data.slice(-1)[0];
     if (lastPoint === undefined) {
@@ -68,7 +74,6 @@
     var lastValue = lastPoint.v;
 
     d3.select('#animate').on('click', function () {
-      console.log('click');
       if (window.interval === undefined) {
         window.interval = setInterval(function () {
           lastPoint = data.slice(-1)[0];
@@ -90,9 +95,8 @@
           day.data.push({"example.rrd" : [newPoint]});
         }, 100);
       } else {
-      clearInterval(window.interval);
-      window.interval = undefined;
-        console.dir(day.data);
+        clearInterval(window.interval);
+        window.interval = undefined;
       }
     });
   };

@@ -268,7 +268,7 @@ RRDGraph = {};
           element.type = 'tick';
 
           var vname_color = subtokens[1].split('#');
-          element.vname = vname_color[0];
+          element.value = vname_color[0];
           element.color = vname_color[1];
           
           if (subtokens.length > 3) {
@@ -278,7 +278,7 @@ RRDGraph = {};
           element.fraction = 0.1;
 
           if (subtokens.length >= 3) {
-            element.fraction = subtokens[2];
+            element.fraction = +subtokens[2];
           }
         } else { // vrule, hrule, line or area
 
@@ -296,7 +296,7 @@ RRDGraph = {};
 
           var key_color = subtokens[1].split('#');
           if (element.type === 'vrule') {
-            element.time = key_color[0];
+            element.time = new Date(+key_color[0]);
           } else { // hrule, line, area
             element.value = key_color[0];
           }
@@ -317,9 +317,9 @@ RRDGraph = {};
                 var key_value = subtokens[st].split('=');
                 if (key_value[0] === 'dashes') {
                   if (key_value.length === 2) {
-                    element.dashes = key_value[1];
+                    element.dashes = key_value[1].replace(',', ' ');
                   } else {
-                    element.dashes = '5,5';
+                    element.dashes = '5 5';
                   }
                 } else { // dash-offset
                   element.dash_offset = subtokens[st].split('=')[1];
@@ -353,6 +353,7 @@ RRDGraph = {};
 
     cast_options(result.options, parseFloat, ['upper-limit', 'lower-limit', 'zoom']);
 
+    result.options['grid-dash'] = result.options['grid-dash'].replace(':', ' ');
     return result;
   };
 
@@ -402,7 +403,7 @@ RRDGraph = {};
   };
   var PRINT_FORMAT = /%(\d*)[.]?(\d*)l([ef]{1})[%]?([sS]?)/;
 
-  var createLegendTemplate = function (config) { // TODO: hrule|vrule|tick|etc
+  var createLegendTemplate = function (config) {
     config.legend = [];
 
     var next_line = {content: [], align: 'left', position: 0};
@@ -424,12 +425,11 @@ RRDGraph = {};
             next_line.content.push(part);
           }
         }
-      } else if (g.type === 'line' || g.type === 'area') {
-        if (g.color) {
+      } else if (g.type === 'line' || g.type === 'area' || g.type === 'tick' || 
+                 g.type === 'hrule' || g.type === 'vrule') {
+        if (g.color && g.legend) {
           next_line.content.push({type: 'box', color: g.color});
-          if (g.legend) {
-            next_line.content.push(g.legend + '  ');
-          }
+          next_line.content.push(g.legend + '  ');
         }
       } else if (g.type === 'gprint') {
         var vname = g.vname;
@@ -536,6 +536,7 @@ RRDGraph = {};
       arrays: {}, // DEFS and CDEFS
       values: {} // VDEFS
     };
+    this.affects_extremes = {};
 
     this.extremes = {
       x: {min: Number.POSITIVE_INFINITY, max: Number.NEGATIVE_INFINITY},
@@ -550,6 +551,16 @@ RRDGraph = {};
     }
     for (var vdef in this.config.defs.value) {
       this.data.values[vdef] = {t: NaN, v: NaN};
+    }
+
+    // defs affect extremes only if they are used in a LINE or AREA
+    for (var vname in this.data.arrays) {
+      for (var g in this.config.graphs) {
+        var graph = this.config.graphs[g];
+        if (graph.value === vname && (graph.type === 'line' || graph.type === 'area')) {
+          this.affects_extremes[vname] = true;
+        }
+      }
     }
   };
 
@@ -1097,6 +1108,11 @@ RRDGraph = {};
     for (var d in this.data.arrays) {
       var def = this.data.arrays[d];
 
+      // defs affect extremes only if they are used in a LINE or AREA
+      if (!(d in this.affects_extremes)) {
+        continue;
+      }
+
       // Value extremes, remove NaNs
       for (var p = 0, len = def.length; p < len; ++p) {
         if (isNaN(def[p].v)) {
@@ -1221,17 +1237,39 @@ RRDGraph = {};
 
     for (var g = 0, len = this.config.graphs.length; g < len; ++g) {
       var e = this.config.graphs[g];
-      if (e.type === 'line' || e.type === 'area') {
-        var shape = this.graph_elements[g] = d3.svg[e.type]().
+      if (e.type === 'line' || e.type === 'area' || e.type === 'tick') {
+        var svg_type = e.type === 'line' ? 'line' : 'area';
+        var shape = this.graph_elements[g] = d3.svg[svg_type]().
           x(function (d) { return scales.x(new Date(d.t)) }).
-          defined(function (d) { return !isNaN(d.v); }).
           interpolate('linear');
 
         if (e.type === 'line') {
+          shape.defined(function (d) { return !isNaN(d.v); });
           shape.y(function (d) { return scales.y(d.v) });
-        } else {
+        } else if (e.type === 'area') {
+          shape.defined(function (d) { return !isNaN(d.v); });
           shape.y1(function (d) { return scales.y(d.v) });
           shape.y0(function (d) { return scales.y(0) });
+        } else if (e.type === 'tick') {
+          shape.defined(function (d) { return !isNaN(d.v) && d.v != 0.0; });
+          var fraction = e.fraction;
+          if (fraction >= 0.0) {
+            shape.y0(function (d) { 
+              return scales.y(scales.y.domain()[0]);
+            });
+            shape.y1(function (d) {
+              var domain = scales.y.domain();
+              return scales.y(domain[0] + (domain[1] - domain[0]) * fraction);
+            });
+          } else {
+            shape.y0(function (d) {
+              var domain = scales.y.domain();
+              return scales.y(domain[0] + (domain[1] - domain[0]) * (1.0 + fraction));
+            });
+            shape.y1(function (d) {
+              return scales.y(scales.y.domain()[1]);
+            });
+          }
         }
 
         this.svg.middle_layer.selectAll('path.' + e.type + '-' + g).
@@ -1240,13 +1278,22 @@ RRDGraph = {};
           attr('class', e.type + '-' + g).
           attr('fill', (e.type === 'line' ? 'none' : e.color)).
           attr('stroke', e.color).
-          attr('stroke-width', e.width).
+          attr('stroke-width', (e.type === 'line' ? e.width : 0)).
           attr('clip-path', 'url(#clip)').
+          attr('shape-rendering', 'auto');
+      } else if (e.type === 'hrule' || e.type === 'vrule') {
+        this.svg.middle_layer.append('svg:line').
+          attr('class', e.type + '-' + g).
+          attr('fill', 'none').
+          attr('stroke', e.color).
+          attr('stroke-width', 1).
+          attr('clip-path', 'url(#clip)').
+          attr('stroke-dasharray', e.dashes).
           attr('shape-rendering', 'auto');
       }
     }
 
-    // TODO: axes, grid
+    // TODO: axes, grid ?? what did I mean to do here? :D
   };
 
   var ALIGN_TO_ANCHOR = {
@@ -1386,7 +1433,7 @@ RRDGraph = {};
         domain([this.data.extremes.x.min, this.data.extremes.x.max]);
 
     
-    var dashes = this.config.options['grid-dash'].replace(':', ' ');
+    var dashes = this.config.options['grid-dash'];
     var width = this.svg.canvas_bg.attr('width');
     var height = this.svg.canvas_bg.attr('height');
 
@@ -1533,14 +1580,27 @@ RRDGraph = {};
       style('font-family', this.config.options.font.axis.family);
 
 
-    // TODO: lines and areas only ATM
     for (var g = 0, len = this.config.graphs.length; g < len; ++g) {
       var e = this.config.graphs[g];
-      if (e.type === 'line' || e.type === 'area') {
+      if (e.type === 'line' || e.type === 'area' || e.type === 'tick') {
         var shape = this.graph_elements[g];
         this.svg.middle_layer.selectAll('path.' + e.type + '-' + g).
           data([this.data.data.arrays[e.value]]).
           attr('d', shape);
+      } else if (e.type === 'hrule') {
+        var y = 0.5 + Math.round(0.5 + this.scales.y(this.data.data.values[e.value].v));
+        this.svg.middle_layer.selectAll('line.' + e.type + '-' + g).
+          attr('x1', 0).
+          attr('y1', y).
+          attr('x2', this.scales.x(this.scales.x.domain()[1])).
+          attr('y2', y);
+      } else if (e.type === 'vrule') {
+        var x = 0.5 + Math.round(0.5 + this.scales.x(e.time));
+        this.svg.middle_layer.selectAll('line.' + e.type + '-' + g).
+          attr('x1', x).
+          attr('y1', 0).
+          attr('x2', x).
+          attr('y2', this.scales.y(this.scales.y.domain()[0]));
       }
     }
 
