@@ -1,5 +1,4 @@
 15.08:
-  3)  STACK
   4)  integrate with Markus's NRT jsp (only need to get config and data)
   5)  comment uninmplemented features in the legend + fallback
 
