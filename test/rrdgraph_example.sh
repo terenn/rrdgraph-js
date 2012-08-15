@@ -13,9 +13,11 @@
  CDEF:b1=b,1,+ \
  CDEF:c=b,FLOOR,b,SIN,- \
  CDEF:d=c,12,GT \
+ CDEF:d_third=d,0.3,* \
  VDEF:b_avg=b,AVERAGE \
  TEXTALIGN:left \
  AREA:c#000099:"Magic" \
+ AREA:d_third#999900:"Stacked \\l":STACK \
  LINE1:b#009900:"Outdoors "  \
  GPRINT:b:LAST:" Cur\:%8.2lf"  \
  GPRINT:b:AVERAGE:"Avg\:%8.2lf "  \

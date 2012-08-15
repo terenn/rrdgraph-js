@@ -37,8 +37,10 @@
       "CDEF:c=b,FLOOR,b,SIN,- \\\n" +
       "CDEF:b1=b,1,+ \\\n" +
       "CDEF:d=c,12,GT \\\n" +
+      "CDEF:d_third=d,0.3,* \\\n" +
       "VDEF:b_avg=b,AVERAGE \\\n" +
       "AREA:c#000099:\"Magic\" \\\n" +
+      "AREA:d_third#999900:\"Stacked \\n\":STACK \\\n" +
       "LINE1:b#009900:\"Outdoors \"  \\\n" +
       "GPRINT:b:LAST:\" Cur\\:%8.2lf \"  \\\n" +
       "GPRINT:b:AVERAGE:\"Avg\\:%8.2lf \"  \\\n" +

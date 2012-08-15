@@ -429,7 +429,20 @@ RRDGraph = {};
                  g.type === 'hrule' || g.type === 'vrule') {
         if (g.color && g.legend) {
           next_line.content.push({type: 'box', color: g.color});
-          next_line.content.push(g.legend + '  ');
+
+          var parts = splitElementString(g.legend);
+          while (parts.length) {
+            var part = parts.shift();
+            if (LINE_ENDS.indexOf(part) !== -1) {
+              next_line.align = ALIGN[part];
+              config.legend.push(next_line);
+              next_line = {content: [], align: 'left', position: next_line.position + 1};
+            } else if (part === '\\u') {
+              next_line.position--;
+            } else {
+              next_line.content.push(part);
+            }
+          }
         }
       } else if (g.type === 'gprint') {
         var vname = g.vname;
@@ -554,10 +567,12 @@ RRDGraph = {};
     }
 
     // defs affect extremes only if they are used in a LINE or AREA
+    // TODO: STACKed values
     for (var vname in this.data.arrays) {
       for (var g in this.config.graphs) {
         var graph = this.config.graphs[g];
-        if (graph.value === vname && (graph.type === 'line' || graph.type === 'area')) {
+        if (graph.value === vname && (graph.type === 'line' || graph.type === 'area') &&
+           !graph.stack) {
           this.affects_extremes[vname] = true;
         }
       }
@@ -1229,11 +1244,12 @@ RRDGraph = {};
 
   Graph.prototype.defineDynamics = function () {
     var scales = this.scales = {
-      y: d3.scale.linear().range([this.config.options.height, 0]),
-      x: d3.time.scale().range([0, this.config.options.width])
+      y: d3.scale.linear().rangeRound([this.config.options.height, 0]),
+      x: d3.time.scale().rangeRound([0, this.config.options.width])
     };
 
     this.graph_elements = [];
+    var _this = this;
 
     for (var g = 0, len = this.config.graphs.length; g < len; ++g) {
       var e = this.config.graphs[g];
@@ -1245,11 +1261,20 @@ RRDGraph = {};
 
         if (e.type === 'line') {
           shape.defined(function (d) { return !isNaN(d.v); });
-          shape.y(function (d) { return scales.y(d.v) });
+          if (e.stack) {
+            shape.y(function (d) { return scales.y(d.v + _this.previous_array[d.t]) });
+          } else {
+            shape.y(function (d) { return scales.y(d.v) });
+          }
         } else if (e.type === 'area') {
           shape.defined(function (d) { return !isNaN(d.v); });
-          shape.y1(function (d) { return scales.y(d.v) });
-          shape.y0(function (d) { return scales.y(0) });
+          if (e.stack) {
+            shape.y1(function (d) { return scales.y(d.v + _this.previous_array[d.t]) });
+            shape.y0(function (d) { return scales.y(_this.previous_array[d.t]) });
+          } else {
+            shape.y1(function (d) { return scales.y(d.v) });
+            shape.y0(function (d) { return scales.y(0) });
+          }
         } else if (e.type === 'tick') {
           shape.defined(function (d) { return !isNaN(d.v) && d.v != 0.0; });
           var fraction = e.fraction;
@@ -1280,6 +1305,7 @@ RRDGraph = {};
           attr('stroke', e.color).
           attr('stroke-width', (e.type === 'line' ? e.width : 0)).
           attr('clip-path', 'url(#clip)').
+          attr('stroke-dasharray', e.dashes).
           attr('shape-rendering', 'auto');
       } else if (e.type === 'hrule' || e.type === 'vrule') {
         this.svg.middle_layer.append('svg:line').
@@ -1327,6 +1353,7 @@ RRDGraph = {};
         attr('fill', '#000').
         attr('text-anchor', ALIGN_TO_ANCHOR[line.align]).
         attr('width', this.svg.container.attr('width') - 30).
+        style('text-rendering', 'geometricPrecision').
         style('font-size', this.config.options.font.legend.size + 'px').
         style('font-family', this.config.options.font.legend.family);
 
@@ -1337,10 +1364,12 @@ RRDGraph = {};
             attr('xml:space', 'preserve');
         } else {
           if (element.type === 'box') {
-            text.append('svg:tspan').text("\u25A0 ").
+            //text.append('svg:tspan').text("\u25A0 ").
+            text.append('svg:tspan').text("\u2B1B ").
               attr('fill', element.color).
               attr('stroke', '#000').
               attr('xml:space', 'preserve').
+              style('font-size', (+this.config.options.font.legend.size + 4) + 'px').
               attr('stroke-width', '0.75').
               attr('stroke-linecap', 'square');
           } else if (element.type === 'float' || element.type === 'exponential') {
@@ -1584,18 +1613,30 @@ RRDGraph = {};
       var e = this.config.graphs[g];
       if (e.type === 'line' || e.type === 'area' || e.type === 'tick') {
         var shape = this.graph_elements[g];
+
+        if (e.type !== 'tick') {
+          var next = this.config.graphs[g + 1];
+          if (next && next.stack) {
+            this.previous_array = {};
+            var array = this.data.data.arrays[e.value];
+            for (var element = 0, l = array.length; element < l; ++element) {
+              this.previous_array[array[element].t] = array[element].v;
+            }
+          }
+        }
+
         this.svg.middle_layer.selectAll('path.' + e.type + '-' + g).
           data([this.data.data.arrays[e.value]]).
           attr('d', shape);
       } else if (e.type === 'hrule') {
-        var y = 0.5 + Math.round(0.5 + this.scales.y(this.data.data.values[e.value].v));
+        var y = 0.5 + this.scales.y(this.data.data.values[e.value].v);
         this.svg.middle_layer.selectAll('line.' + e.type + '-' + g).
           attr('x1', 0).
           attr('y1', y).
           attr('x2', this.scales.x(this.scales.x.domain()[1])).
           attr('y2', y);
       } else if (e.type === 'vrule') {
-        var x = 0.5 + Math.round(0.5 + this.scales.x(e.time));
+        var x = 0.5 + this.scales.x(e.time);
         this.svg.middle_layer.selectAll('line.' + e.type + '-' + g).
           attr('x1', x).
           attr('y1', 0).
