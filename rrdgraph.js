@@ -975,6 +975,10 @@ RRDGraph = {};
 
   var VDEF_RPN = {
     'MAXIMUM': function (array) {
+      if (array.length == 0) {
+        return {t: 0, v: Number.NaN};
+      }
+
       var result = array[0];
       for (var i = 1, len = array.length; i < len; ++i) {
         var value = array[i];
@@ -985,6 +989,10 @@ RRDGraph = {};
       return result;
     },
     'MINIMUM': function (array) {
+      if (array.length == 0) {
+        return {t: 0, v: Number.NaN};
+      }
+
       var result = array[0];
       for (var i = 1, len = array.length; i < len; ++i) {
         var value = array[i];
