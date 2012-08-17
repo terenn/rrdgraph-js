@@ -1379,8 +1379,8 @@ var RRDGraph = window['RRDGraph'] = {};
             attr('xml:space', 'preserve');
         } else {
           if (element.type === 'box') {
-            //text.append('svg:tspan').text("\u25A0 ").
-            text.append('svg:tspan').text("\u2B1B ").
+            text.append('svg:tspan').text("\u25A0 ").
+            //text.append('svg:tspan').text("\u2B1B ").
               attr('fill', element.color).
               attr('stroke', '#000').
               attr('xml:space', 'preserve').
