@@ -21,37 +21,20 @@
   var rrd_command = (
     "/usr/bin/rrdtool graph example.png \\\n" +
     "--slope-mode \\\n" +
-    "--title=\"Realtime test\" \\\n" +
-    "--rigid \\\n" +
+    "--title=\"Current TCP connections\" \\\n" +
     "--height=200 \\\n" +
     "--width=500 \\\n" +
-    "--vertical-label=\"C\" \\\n" +
-    "--watermark=\"This is the watermark\" \\\n" +
-    "DEF:b=\"example.rrd\":temp:AVERAGE \\\n" +
-    "DEF:b_max=\"example.rrd\":temp:MAX \\\n" +
-    "DEF:b_min=\"example.rrd\":temp:MIN \\\n" +
-    "DEF:c=\"example.rrd\":temp2:AVERAGE \\\n" +
-    "DEF:d=\"example2.rrd\":temp:AVERAGE \\\n" +
-    "CDEF:b1=b,1,+ \\\n" +
-    "VDEF:b_avg=b,AVERAGE \\\n" +
-    "LINE1:b#009900:\"b \"  \\\n" +
-    "GPRINT:b:LAST:\" Cur\\:%8.2lf \"  \\\n" +
-    "GPRINT:b:AVERAGE:\"Avg\\:%8.2lf \"  \\\n" +
-    "GPRINT:b:MIN:\"Min\\:%8.2lf \"  \\\n" +
-    "GPRINT:b:MAX:\"Max\\:%8.2lf \\n\" \\\n" +
-    "LINE1:b_max#ff9900:\"b_max \"  \\\n" +
-    "LINE1:b_min#0099ff:\"b_min \"  \\\n" +
-    "LINE1:b1#ff99ff:\"b + 1\"  \\\n" +
-    "LINE1:c#990000:\"c \"  \\\n" +
-    "AREA:d#00009980:\"d \"  \\\n" +
-    "LINE2:d#990099 \\\n" +
-    "HRULE:b_avg#bb4499:\"Average b\":dashes=10,2,5,5 \\\n"
+    "--vertical-label=\"Current Connections\" \\\n" +
+    "DEF:currEstab={rrd1}:tcpCurrEstab:AVERAGE \\\n" +
+    "AREA:currEstab#00ff00:\"Current \" \\\n" +
+    "LINE2:currEstab#0000ff:\"Current Line \" \\\n" +
+    "GPRINT:currEstab:AVERAGE:\"Avg  \\: %8.2lf %s\" \\\n" +
+    "GPRINT:currEstab:MIN:\"Min  \\: %8.2lf %s\" \\\n" +
+    "GPRINT:currEstab:MAX:\"Max  \\: %8.2lf %s\\n\" \\\n"
     );
 
     var mappings = {
-      '.1.2.3.4.5': 'example.rrd:temp',
-      '.1.2.3.4.6': 'example.rrd:temp2',
-      '.1.2.3.4.7': 'example2.rrd:temp',
+      '.1.2.3.4.5': '{rrd1}:tcpCurrEstab',
     };
 
 
@@ -63,18 +46,14 @@
     var graphs = RRDGraph.init('.rrdgraph', rrd_command);
     var graph = window.graph = graphs[0];
 
-    var dc = new RRDGraph.DataCollector(graph.config, graph.data, mappings);
+    var dc = window.dc = new RRDGraph.DataCollector(graph.config, graph.data, mappings);
 
     var last = {
-      b: 20,
-      c: 25,
-      d: 15
+      currEstab: 100,
     };
 
     var def_to_metric = {
-      b: '.1.2.3.4.5',
-      c: '.1.2.3.4.6',
-      d: '.1.2.3.4.7'
+      currEstab: '.1.2.3.4.5',
     };
 
     var startStop = function () {
@@ -87,7 +66,10 @@
 
           for (var p in last) {
             var newDate = +new Date();
-            var newValue = last[p] - 0.1 + Math.random() * 0.2;
+            var newValue = last[p] - 1 + Math.floor(Math.random() * 3);
+            if (Math.random() > 0.05) {
+              newValue = last[p];
+            }
             last[p] = newValue;
 
             var newMetric = {
