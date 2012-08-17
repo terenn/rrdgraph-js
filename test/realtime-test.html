@@ -18,7 +18,7 @@
 <script src="http://d3js.org/d3.v2.min.js"></script>
 <script src="../rrdgraph.js"></script>
 <script>
-  var config = (
+  var rrd_command = (
     "/usr/bin/rrdtool graph example.png \\\n" +
     "--slope-mode \\\n" +
     "--title=\"Realtime test\" \\\n" +
@@ -53,8 +53,13 @@
       '.1.2.3.4.7': 'example2.rrd:temp',
     };
 
+
+
+
+
+
   window.onload = function () {
-    var graphs = RRDGraph.init('.rrdgraph', config);
+    var graphs = RRDGraph.init('.rrdgraph', rrd_command);
     var graph = window.graph = graphs[0];
 
     var dc = new RRDGraph.DataCollector(graph.config, graph.data, mappings);
@@ -95,7 +100,10 @@
 
             metrics.push(newMetric);
           }
+
+          // This is the part that needs to be called when metrics are available.
           dc.push(metrics);
+
         }, rate);
       } else {
         this.innerHTML = 'Start';
