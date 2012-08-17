@@ -1042,7 +1042,7 @@ var RRDGraph = window['RRDGraph'] = {};
     }
   };
 
-  Data.prototype.push = function (points) {
+  Data.prototype.push = function (data) {
     this.extremes.x.min = Number.POSITIVE_INFINITY;
     this.extremes.x.max = Number.NEGATIVE_INFINITY;
     this.extremes.y.min = Number.POSITIVE_INFINITY;
@@ -1050,11 +1050,12 @@ var RRDGraph = window['RRDGraph'] = {};
 
     var temp_defs = {};
     var n_defs = 0;
-    for (var name in points) {
+    for (var el in data) {
+      var element = data[el];
       var defs = [];
       for (var d in this.config.defs.data) {
         var def = this.config.defs.data[d];
-        if (def.rrd === name) {
+        if (def.rrd === element.rrd && def.ds_name === element.ds_name) {
           defs.push(d);
         }
       }
@@ -1063,9 +1064,9 @@ var RRDGraph = window['RRDGraph'] = {};
 
       for (var d = 0; d < defs.length; ++d) {
         temp_defs[defs[d]] = [];
-        for (var p = 0, len = points[name].length; p < len; ++p) {
-          this.data.arrays[defs[d]].push(points[name][p]);
-          temp_defs[defs[d]].push(points[name][p]);
+        for (var p = 0, len = element.points.length; p < len; ++p) {
+          this.data.arrays[defs[d]].push(element.points[p]);
+          temp_defs[defs[d]].push(element.points[p]);
         }
       }
     }

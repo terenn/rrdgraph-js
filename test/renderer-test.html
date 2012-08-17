@@ -94,7 +94,7 @@
             newPoint.v = null;
           }
           */
-          day.data.push({"example.rrd" : [newPoint]});
+          day.data.push([{"rrd":"example.rrd","ds_name":"temp","points":[newPoint]}]);
         }, 100);
       } else {
         clearInterval(window.interval);

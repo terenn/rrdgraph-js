@@ -11,6 +11,12 @@
 <div>
   Time per tick (seconds)
   <input type="text" id="tick_interval" value="1"/>
+</div>
+<div>
+  Tick frequency (milliseconds, stop-start to update)
+  <input type="text" id="tick_freq" value="1000"/>
+</div>
+<div>
   <button id="animate">Start/stop data generation</button>
 </div>
 
@@ -71,8 +77,8 @@
             newPoint.v = null;
           }
           */
-          graph.data.push({"example.rrd" : [newPoint]});
-        }, 1000);
+          graph.data.push([{"rrd":"example.rrd","ds_name":"temp","points":[newPoint]}]);
+        }, document.getElementById('tick_freq').value);
       } else {
         clearInterval(window.interval);
         window.interval = undefined;
