@@ -1239,7 +1239,6 @@ var RRDGraph = window['RRDGraph'] = {};
     var formatValue = d3.format(' .1f');
     this.svg.canvas_hover.on('mousemove', function () {
       var e = d3.event;
-      console.dir(d3.event);
       var x = e.offsetX - _this.canvas_padding.x;
       var y = e.offsetY - _this.canvas_padding.y;
 
