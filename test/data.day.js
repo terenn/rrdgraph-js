@@ -1,8 +1,7 @@
 var DayData = function () {
   return [
     {
-      "rrd" : "example.rrd",
-      "ds_name" : "temp",
+      "def" : "b",
       "points" : [
         {t:1340399100000,v:1.6685334293e+01},
         {t:1340399400000,v:1.6624632105e+01},

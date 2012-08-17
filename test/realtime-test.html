@@ -9,15 +9,10 @@
 
 <div class="rrdgraph" data-src="realtime=1"></div>
 <div>
-  Time per tick (seconds)
-  <input type="text" id="tick_interval" value="1"/>
+  Measurement rate (ms) <input type="text" value="5" id="rate" />
 </div>
 <div>
-  Tick frequency (milliseconds, stop-start to update)
-  <input type="text" id="tick_freq" value="1000"/>
-</div>
-<div>
-  <button id="animate">Start/stop data generation</button>
+  <button id="animate">Start</button>
 </div>
 
 <script src="http://d3js.org/d3.v2.min.js"></script>
@@ -33,56 +28,88 @@
     "--vertical-label=\"C\" \\\n" +
     "--watermark=\"This is the watermark\" \\\n" +
     "DEF:b=\"example.rrd\":temp:AVERAGE \\\n" +
-    "CDEF:c=b,FLOOR,b,SIN,- \\\n" +
+    "DEF:b_max=\"example.rrd\":temp:MAX \\\n" +
+    "DEF:b_min=\"example.rrd\":temp:MIN \\\n" +
+    "DEF:c=\"example.rrd\":temp2:AVERAGE \\\n" +
+    "DEF:d=\"example2.rrd\":temp:AVERAGE \\\n" +
     "CDEF:b1=b,1,+ \\\n" +
-    "CDEF:d=c,12,GT,0.3,* \\\n" +
     "VDEF:b_avg=b,AVERAGE \\\n" +
-    "AREA:c#000099:\"Magic\" \\\n" +
-    "AREA:d#999900:\"Stacked \\n\":STACK \\\n" +
-    "LINE1:b#009900:\"Outdoors \"  \\\n" +
+    "LINE1:b#009900:\"b \"  \\\n" +
     "GPRINT:b:LAST:\" Cur\\:%8.2lf \"  \\\n" +
     "GPRINT:b:AVERAGE:\"Avg\\:%8.2lf \"  \\\n" +
     "GPRINT:b:MIN:\"Min\\:%8.2lf \"  \\\n" +
     "GPRINT:b:MAX:\"Max\\:%8.2lf \\n\" \\\n" +
-    "LINE1:b1#990000:\"Outdoors + 1\"  \\\n" +
-    "HRULE:b_avg#bb4499:\"Average\":dashes=10,2,5,5 \\\n"
-  );
+    "LINE1:b_max#ff9900:\"b_max \"  \\\n" +
+    "LINE1:b_min#0099ff:\"b_min \"  \\\n" +
+    "LINE1:b1#990000:\"b + 1\"  \\\n" +
+    "LINE1:c#990000:\"c \"  \\\n" +
+    "AREA:d#000099:\"d \"  \\\n" +
+    "HRULE:b_avg#bb4499:\"Average b\":dashes=10,2,5,5 \\\n"
+    );
+
+    var mappings = {
+      '.1.2.3.4.5': 'example.rrd:temp',
+      '.1.2.3.4.6': 'example.rrd:temp2',
+      '.1.2.3.4.7': 'example2.rrd:temp',
+    };
 
   window.onload = function () {
     var graphs = RRDGraph.init('.rrdgraph', config);
     var graph = window.graph = graphs[0];
 
-    var lastPoint = {
-      t: +new Date(),
-      v: 20
-    };
-    var lastValue = lastPoint.v;
+    var dc = new RRDGraph.DataCollector(graph.config, graph.data, mappings);
 
-    d3.select('#animate').on('click', function () {
+    var last = {
+      b: 20,
+      c: 25,
+      d: 15
+    };
+
+    var def_to_metric = {
+      b: '.1.2.3.4.5',
+      c: '.1.2.3.4.6',
+      d: '.1.2.3.4.7'
+    };
+
+    var startStop = function () {
+      var rate = parseInt(document.getElementById('rate').value);
       if (window.interval === undefined) {
+        dc.setRate(rate);
+        document.getElementById('animate').innerHTML = 'Stop';
         window.interval = setInterval(function () {
-          lastPoint = graph.data.data.arrays.b.slice(-1)[0];
-          if (lastPoint === undefined) {
-            lastPoint = {
-              t: +new Date(),
-              v: 20
+          var metrics = [];
+
+          for (var p in last) {
+            var newDate = +new Date();
+            var newValue = last[p] - 0.1 + Math.random() * 0.2;
+            last[p] = newValue;
+
+            var newMetric = {
+              metricId: def_to_metric[p],
+              netInterface: 'random',
+              nodeId: 'random',
+              service: 'SNMP',
+              timeStamp: newDate,
+              value: newValue
             };
+
+            metrics.push(newMetric);
           }
-          var newDate = lastPoint.t + document.getElementById('tick_interval').value * 1000;
-          var newValue = lastValue - 0.1 + Math.random() * 0.2;
-          lastValue = newValue;
-          var newPoint = {t: newDate, v: newValue};
-          /*
-          if (Math.random() < 0.1) {
-            newPoint.v = null;
-          }
-          */
-          graph.data.push([{"rrd":"example.rrd","ds_name":"temp","points":[newPoint]}]);
-        }, document.getElementById('tick_freq').value);
+          dc.push(metrics);
+        }, rate);
       } else {
+        this.innerHTML = 'Start';
         clearInterval(window.interval);
         window.interval = undefined;
       }
+    };
+
+    d3.select('#animate').on('click', startStop);
+
+    d3.select('#rate').on('input', function () {
+      clearInterval(window.interval);
+      window.interval = undefined;
+      startStop();
     });
   };
 </script>

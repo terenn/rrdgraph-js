@@ -94,7 +94,7 @@ var RRDGraph = window['RRDGraph'] = {};
   var parse = function (config_string) {
     var result = {
       options: {
-        'start'             : +new Date() - 7200000,
+        'start'             : +new Date() - 1200000,
         'end'               : +new Date(),
         'step'              : 1,
         'title'             : '',
@@ -1054,8 +1054,7 @@ var RRDGraph = window['RRDGraph'] = {};
       var element = data[el];
       var defs = [];
       for (var d in this.config.defs.data) {
-        var def = this.config.defs.data[d];
-        if (def.rrd === element.rrd && def.ds_name === element.ds_name) {
+        if (d === element.def) {
           defs.push(d);
         }
       }
@@ -1632,13 +1631,22 @@ var RRDGraph = window['RRDGraph'] = {};
       tick.xaxis.count = 10;
       tick.xaxis.sub = 5;
       tick.xaxis.format = d3.time.format('%H:%M:%S');
-    } else { // up to 30 seconds
+    } else if (timespan > 5000) { // up to 30 seconds
       tick.vgrid.min_type = d3.time.seconds;
       tick.vgrid.min_count = 1;
       tick.vgrid.maj_type = d3.time.seconds;
       tick.vgrid.maj_count = 5;
       tick.xaxis.type = d3.time.seconds;
       tick.xaxis.count = 5;
+      tick.xaxis.sub = 5;
+      tick.xaxis.format = d3.time.format('%H:%M:%S');
+    } else { // up to 5 seconds
+      tick.vgrid.min_type = d3.time.seconds;
+      tick.vgrid.min_count = 1;
+      tick.vgrid.maj_type = d3.time.seconds;
+      tick.vgrid.maj_count = 1;
+      tick.xaxis.type = d3.time.seconds;
+      tick.xaxis.count = 1;
       tick.xaxis.sub = 5;
       tick.xaxis.format = d3.time.format('%H:%M:%S');
     }
@@ -1811,4 +1819,162 @@ var RRDGraph = window['RRDGraph'] = {};
     return result;
   };
 
+})();
+
+/*******************************************************************************
+ * Realtime data collector
+ ******************************************************************************/
+(function () {
+  var DataCollector = window['RRDGraph']['DataCollector'] = function (config, data, mappings) {
+    this.config = config;
+    this.data = data;
+    this.setRate(5);
+
+    this.setupMappings(mappings);
+    this.setupStorage();
+  };
+
+  DataCollector.prototype.setupMappings = function (mappings) {
+    this.mappings = {};
+    for (var m in mappings) {
+      var mapping = mappings[m];
+      var rrd_ds_name = mapping.split(':');
+      this.mappings[m] = {
+        rrd: rrd_ds_name[0],
+        ds_name: rrd_ds_name[1]
+      };
+    }
+  };
+
+  DataCollector.prototype.setupStorage = function () {
+    this.storage = {};
+    for (var d in this.config.defs.data) {
+      var def = this.config.defs.data[d];
+      if (!(def.rrd in this.storage)) {
+        this.storage[def.rrd] = {};
+      }
+      this.storage[def.rrd][def.ds_name] = [];
+    }
+  };
+
+  DataCollector.prototype.setRate = function (rate) {
+    this.rate = rate;
+    if (rate > 500) {
+      this.measurements = 1;
+    } else if (rate > 200) {
+      this.measurements = 2;
+    } else if (rate > 100) {
+      this.measurements = 5;
+    } else {
+      this.measurements = 10;
+    }
+  };
+
+  DataCollector.prototype.push = function (metrics) {
+    for (var m = 0; m < metrics.length; ++m) {
+      var metric = metrics[m];
+      var mapping = this.mappings[metric.metricId];
+      if (mapping && mapping.rrd in this.storage && 
+          mapping.ds_name in this.storage[mapping.rrd]) {
+        this.storage[mapping.rrd][mapping.ds_name].push({
+          t: metric.timeStamp, v: metric.value
+        });
+      }
+    }
+
+
+    this.consolidate();
+  };
+
+  var CONSOLIDATE = {
+    AVERAGE: function (data) {
+      var result = {
+        t: data.slice(-1)[0].t
+      };
+
+      var sum = 0;
+      for (var d = 0; d < data.length; ++d) {
+        sum += data[d].v;
+      }
+      result.v = sum / data.length;
+
+      return result;
+    },
+    MIN: function (data) {
+      var result = {
+        t: data.slice(-1)[0].t,
+        v: Number.POSITIVE_INFINITY
+      };
+
+      for (var d = 0; d < data.length; ++d) {
+        if (data[d].v < result.v) {
+          result.v = data[d].v;
+        }
+      }
+
+      return result;
+    },
+    MAX: function (data) {
+      var result = {
+        t: data.slice(-1)[0].t,
+        v: Number.NEGATIVE_INFINITY
+      };
+
+      for (var d = 0; d < data.length; ++d) {
+        if (data[d].v > result.v) {
+          result.v = data[d].v;
+        }
+      }
+
+      return result;
+    },
+    LAST: function (data) {
+      return data.slice(-1)[0];
+    }
+  };
+
+  DataCollector.prototype.consolidate = function () {
+    // Check if we have enough measurements for all DEFs
+    for (var d in this.config.defs.data) {
+      var def = this.config.defs.data[d];
+      if (this.storage[def.rrd][def.ds_name].length < this.measurements) {
+        return;
+      }
+    }
+    
+    var result = [];
+    var max_t = 0;
+
+    // Consolidate all DEFs
+    for (var d in this.config.defs.data) {
+      var def = this.config.defs.data[d];
+      var data = 
+        this.storage[def.rrd][def.ds_name].slice(0, this.measurements);
+      var consolidated = CONSOLIDATE[def.cf](data);
+
+      if (max_t < consolidated.t) {
+        max_t = consolidated.t;
+      }
+
+      result.push({
+        def: d,
+        points: [consolidated]
+      });
+    }
+
+    // Set the same time for all defs
+    for (var r = 0; r < result.length; ++r) {
+      result[r].points[0].t = max_t;
+    }
+
+    // Remove consolidated measurements
+    for (var rrd in this.storage) {
+      for (var ds_name in this.storage[rrd]) {
+        this.storage[rrd][ds_name].splice(0, this.measurements);
+      }
+    }
+
+    // Pass result to data for graphing
+    this.data.push(result);
+  };
 })();

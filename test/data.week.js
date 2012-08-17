@@ -1,8 +1,7 @@
 var WeekData = function () {
   return [
     {
-      "rrd" : "example.rrd",
-      "ds_name" : "temp",
+      "def" : "b",
       "points" : [
         {t:1339884000000,v:1.6678034778e+01},
         {t:1339887600000,v:1.6245402814e+01},

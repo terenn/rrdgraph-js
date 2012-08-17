@@ -1,8 +1,7 @@
 var MonthData = function () {
   return [
     {
-      "rrd" : "example.rrd",
-      "ds_name" : "temp",
+      "def" : "b",
       "points" : [
         {t:1337896800000,v:1.1462309255e+01},
         {t:1337900400000,v:1.0787067756e+01},
