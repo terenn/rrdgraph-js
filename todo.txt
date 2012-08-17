@@ -1,10 +1,6 @@
-15.08:
-  4)  integrate with Markus's NRT jsp (only need to get config and data)
-  5)  comment uninmplemented features in the legend + fallback
-
 20.08:
   1)  fix bugs
   2)  fix limits/rigidness
-  3)  maybe tooltip
   4)  reread code and comment anything not immediately understandable
   5)  write a readme + howto
+  6)  comment uninmplemented features in the legend + fallback

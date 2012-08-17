@@ -1208,14 +1208,54 @@ var RRDGraph = window['RRDGraph'] = {};
     this.svg.bottom_layer = canvas.append('svg:g').attr('class', 'bottom-layer');
     this.svg.middle_layer = canvas.append('svg:g').attr('class', 'middle-layer');
     this.svg.top_layer = canvas.append('svg:g').attr('class', 'top-layer');
+    this.svg.hover_layer = canvas.append('svg:g').attr('class', 'hover-layer');
 
     this.svg.clip = container.append('svg:clipPath').
       attr('id', 'clip').
       append('svg:rect');
 
-
     this.svg.canvas_bg = this.svg.bottom_layer.append('svg:rect').
       attr('fill', '#fff');
+
+    this.svg.canvas_hover = this.svg.hover_layer.append('svg:rect').
+      attr('fill-opacity', 0);
+
+    this.tooltip = this.element.append('div').
+      style('position', 'absolute').
+      style('background-color', 'white').
+      style('border-right', this.config.options.border + 'px solid #999').
+      style('border-bottom', this.config.options.border + 'px solid #999').
+      style('border-top', this.config.options.border + 'px solid #ccc').
+      style('border-left', this.config.options.border + 'px solid #ccc').
+      style('padding', '3px').
+      style('text-align', 'center').
+      style('visibility', 'hidden').
+      style('font-size', this.config.options.font.legend.size + 'px').
+      style('font-family', this.config.options.font.legend.family).
+      style('z-index', '20');
+
+    var _this = this;
+    var formatTime = d3.time.format('%c');
+    var formatValue = d3.format(' .1f');
+    this.svg.canvas_hover.on('mousemove', function () {
+      var e = d3.event;
+      console.dir(d3.event);
+      var x = e.offsetX - _this.canvas_padding.x;
+      var y = e.offsetY - _this.canvas_padding.y;
+
+      var time = formatTime(_this.scales.x.invert(x));
+      var value = formatValue(_this.scales.y.invert(y));
+      _this.tooltip.
+        style('visibility', 'visible').
+        style('top', (e.pageY + 8) + 'px').
+        style('left', (e.pageX + 8) + 'px').
+        html(time + '<br/>' + 'Value: ' + value);
+    });
+    
+    this.svg.canvas_hover.on('mouseout', function () {
+      _this.tooltip.
+        style('visibility', 'hidden');
+    });
 
     this.svg.title = container.append('svg:text').
       attr('text-anchor', 'middle').
@@ -1425,6 +1465,10 @@ var RRDGraph = window['RRDGraph'] = {};
     };
 
     this.svg.canvas_bg.
+      attr('width', dims.width).
+      attr('height', dims.height);
+
+    this.svg.canvas_hover.
       attr('width', dims.width).
       attr('height', dims.height);
 
