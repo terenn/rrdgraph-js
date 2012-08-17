@@ -1312,16 +1312,20 @@ var RRDGraph = window['RRDGraph'] = {};
           }
         }
 
-        this.svg.middle_layer.selectAll('path.' + e.type + '-' + g).
-          data([[]]).enter().append('svg:path').
-          attr('d', shape).
-          attr('class', e.type + '-' + g).
-          attr('fill', (e.type === 'line' ? 'none' : e.color)).
-          attr('stroke', e.color).
-          attr('stroke-width', (e.type === 'line' ? e.width : 0)).
-          attr('clip-path', 'url(#clip)').
-          attr('stroke-dasharray', e.dashes).
-          attr('shape-rendering', 'auto');
+        if (e.type === 'tick' || e.color) {
+          this.svg.middle_layer.selectAll('path.' + e.type + '-' + g).
+            data([[]]).enter().append('svg:path').
+            attr('d', shape).
+            attr('class', e.type + '-' + g).
+            attr('fill', (e.type === 'line' ? 'none' : e.color)).
+            attr('fill-opacity', e.opacity).
+            attr('stroke', e.color).
+            attr('stroke-width', (e.type === 'line' ? e.width : 0)).
+            attr('stroke-opacity', e.opacity).
+            attr('clip-path', 'url(#clip)').
+            attr('stroke-dasharray', e.dashes).
+            attr('shape-rendering', 'auto');
+        }
       } else if (e.type === 'hrule' || e.type === 'vrule') {
         this.svg.middle_layer.append('svg:line').
           attr('class', e.type + '-' + g).
@@ -1720,9 +1724,11 @@ var RRDGraph = window['RRDGraph'] = {};
           }
         }
 
-        this.svg.middle_layer.selectAll('path.' + e.type + '-' + g).
-          data([this.data.data.arrays[e.value]]).
-          attr('d', shape);
+        if (e.type === 'tick' || e.color) {
+          this.svg.middle_layer.selectAll('path.' + e.type + '-' + g).
+            data([this.data.data.arrays[e.value]]).
+            attr('d', shape);
+        }
       } else if (e.type === 'hrule') {
         var y = 0.5 + this.scales.y(this.data.data.values[e.value].v);
         this.svg.middle_layer.selectAll('line.' + e.type + '-' + g).
