@@ -26,20 +26,20 @@
  *     http://www.opennms.com/
  ******************************************************************************/
 
-RRDGraph = {};
+var RRDGraph = window['RRDGraph'] = {};
 
 /*******************************************************************************
  * Data/config grabber
  ******************************************************************************/
 (function () {
-  var get = RRDGraph.get = {};
+  var get = RRDGraph['get'] = {};
 
-  get.config = function (src) { // {resourceId, report}
+  get['config'] = function (src) { // {resourceId, report}
     // TODO: decide how to get this from the server
     return '';
   };
 
-  get.data = function () { // {resourceId, report, start, end}
+  get['data'] = function () { // {resourceId, report, start, end}
     // TODO: decide how to get this from the server
     return {};
   };
@@ -94,8 +94,8 @@ RRDGraph = {};
   var parse = function (config_string) {
     var result = {
       options: {
-        'start'             : '-86400', // 1 day before
-        'end'               : 0,
+        'start'             : +new Date() - 7200000,
+        'end'               : +new Date(),
         'step'              : 1,
         'title'             : '',
         'vertical-label'    : '',
@@ -348,7 +348,7 @@ RRDGraph = {};
 
     cast_options(result.options, parseInt, [
       'step', 'width', 'height', 'units-exponent', 'units-length', 'border',
-      'tabwidth', 'base'
+      'tabwidth', 'base', 'start', 'end'
     ]);
 
     cast_options(result.options, parseFloat, ['upper-limit', 'lower-limit', 'zoom']);
@@ -541,7 +541,6 @@ RRDGraph = {};
     this.listeners = [];
 
     this.setup();
-    this.push(RRDGraph.get.data(src));
   };
 
   Data.prototype.setup = function () {
@@ -1050,6 +1049,7 @@ RRDGraph = {};
     this.extremes.y.max = Number.NEGATIVE_INFINITY;
 
     var temp_defs = {};
+    var n_defs = 0;
     for (var name in points) {
       var defs = [];
       for (var d in this.config.defs.data) {
@@ -1059,6 +1059,8 @@ RRDGraph = {};
         }
       }
 
+      n_defs = defs.length;
+
       for (var d = 0; d < defs.length; ++d) {
         temp_defs[defs[d]] = [];
         for (var p = 0, len = points[name].length; p < len; ++p) {
@@ -1066,6 +1068,11 @@ RRDGraph = {};
           temp_defs[defs[d]].push(points[name][p]);
         }
       }
+    }
+
+    // No points
+    if (!n_defs) {
+      return;
     }
 
     var temp_cdefs = {};
@@ -1147,7 +1154,7 @@ RRDGraph = {};
 
       // Time extremes
       if (def.length > 0) {
-        var period = this.src.end - this.src.start;
+        var period = this.config.options.end - this.config.options.start;
 
         if (def[def.length - 1].t > this.extremes.x.max) this.extremes.x.max = def[def.length - 1].t;
         if (this.config.options.compress) {
@@ -1460,7 +1467,6 @@ RRDGraph = {};
   Graph.prototype.bind = function (data) {
     this.data = data;
     data.addListener(this);
-    this.update();
   };
 
   Graph.prototype.update = function () {
@@ -1509,23 +1515,23 @@ RRDGraph = {};
     var tick = {vgrid: {}, xaxis: {}};
     var timespan = this.data.extremes.x.max - this.data.extremes.x.min;
     if (timespan > 2419200000) { // > month, year view
-      tick.vgrid.min_type = d3.time.days;
+      tick.vgrid.min_type = d3.time.months;
       tick.vgrid.min_count = 1;
-      tick.vgrid.maj_type = d3.time.weeks;
+      tick.vgrid.maj_type = d3.time.months;
       tick.vgrid.maj_count = 1;
-      tick.xaxis.type = d3.time.weeks;
+      tick.xaxis.type = d3.time.months;
       tick.xaxis.count = 1;
       tick.xaxis.sub = 0;
-      tick.xaxis.format = d3.time.format('Week %W');
-    } else if (timespan > 604800000) { // > week, month view
+      tick.xaxis.format = d3.time.format('%b');
+    } else if (timespan > 604800000) { // up to 1 month
       tick.vgrid.min_type = d3.time.hours;
       tick.vgrid.min_count = 12;
       tick.vgrid.maj_type = d3.time.days;
       tick.vgrid.maj_count = 1;
-      tick.xaxis.type = d3.time.days;
-      tick.xaxis.count = 2;
-      tick.xaxis.sub = 2;
-      tick.xaxis.format = d3.time.format('%a');
+      tick.xaxis.type = d3.time.weeks;
+      tick.xaxis.count = 1;
+      tick.xaxis.sub = 7;
+      tick.xaxis.format = d3.time.format('Week %W');
     } else if (timespan > 86400000 * 4) { // up to 7 days
       tick.vgrid.min_type = d3.time.hours;
       tick.vgrid.min_count = 6;
@@ -1544,7 +1550,7 @@ RRDGraph = {};
       tick.xaxis.count = 12;
       tick.xaxis.sub = 3;
       tick.xaxis.format = d3.time.format('%a %H:%M');
-    } else if (timespan > 86400000) { // > up to 2 days
+    } else if (timespan > 86400000) { // up to 2 days
       tick.vgrid.min_type = d3.time.hours;
       tick.vgrid.min_count = 1;
       tick.vgrid.maj_type = d3.time.hours;
@@ -1553,15 +1559,87 @@ RRDGraph = {};
       tick.xaxis.count = 8;
       tick.xaxis.sub = 4;
       tick.xaxis.format = d3.time.format('%a %H:%M');
-    } else { // up to 1 day
+    } else if (timespan > 43200000) { // up to 1 day
       tick.vgrid.min_type = d3.time.minutes;
       tick.vgrid.min_count = 30;
       tick.vgrid.maj_type = d3.time.hours;
       tick.vgrid.maj_count = 2;
       tick.xaxis.type = d3.time.hours;
-      tick.xaxis.count = 6;
+      tick.xaxis.count = 4;
       tick.xaxis.sub = 3;
       tick.xaxis.format = d3.time.format('%a %H:%M');
+    } else if (timespan > 21600000) { // up to 12 hours
+      tick.vgrid.min_type = d3.time.minutes;
+      tick.vgrid.min_count = 30;
+      tick.vgrid.maj_type = d3.time.hours;
+      tick.vgrid.maj_count = 2;
+      tick.xaxis.type = d3.time.hours;
+      tick.xaxis.count = 2;
+      tick.xaxis.sub = 3;
+      tick.xaxis.format = d3.time.format('%a %H:%M');
+    } else if (timespan > 7200000) { // up to 6 hours
+      tick.vgrid.min_type = d3.time.minutes;
+      tick.vgrid.min_count = 10;
+      tick.vgrid.maj_type = d3.time.minutes;
+      tick.vgrid.maj_count = 30;
+      tick.xaxis.type = d3.time.hours;
+      tick.xaxis.count = 1;
+      tick.xaxis.sub = 6;
+      tick.xaxis.format = d3.time.format('%a %H:%M');
+    } else if (timespan > 1800000) { // up to 2 hours
+      tick.vgrid.min_type = d3.time.minutes;
+      tick.vgrid.min_count = 2;
+      tick.vgrid.maj_type = d3.time.minutes;
+      tick.vgrid.maj_count = 10;
+      tick.xaxis.type = d3.time.minutes;
+      tick.xaxis.count = 20;
+      tick.xaxis.sub = 6;
+      tick.xaxis.format = d3.time.format('%a %H:%M');
+    } else if (timespan > 600000) { // up to 30 minutes
+      tick.vgrid.min_type = d3.time.minutes;
+      tick.vgrid.min_count = 1;
+      tick.vgrid.maj_type = d3.time.minutes;
+      tick.vgrid.maj_count = 5;
+      tick.xaxis.type = d3.time.minutes;
+      tick.xaxis.count = 5;
+      tick.xaxis.sub = 5;
+      tick.xaxis.format = d3.time.format('%H:%M:%S');
+    } else if (timespan > 300000) { // up to 10 minutes
+      tick.vgrid.min_type = d3.time.seconds;
+      tick.vgrid.min_count = 20;
+      tick.vgrid.maj_type = d3.time.minutes;
+      tick.vgrid.maj_count = 1;
+      tick.xaxis.type = d3.time.minutes;
+      tick.xaxis.count = 2;
+      tick.xaxis.sub = 5;
+      tick.xaxis.format = d3.time.format('%H:%M:%S');
+    } else if (timespan > 60000) { // up to 5 minutes
+      tick.vgrid.min_type = d3.time.seconds;
+      tick.vgrid.min_count = 10;
+      tick.vgrid.maj_type = d3.time.seconds;
+      tick.vgrid.maj_count = 30;
+      tick.xaxis.type = d3.time.minutes;
+      tick.xaxis.count = 1;
+      tick.xaxis.sub = 5;
+      tick.xaxis.format = d3.time.format('%H:%M:%S');
+    } else if (timespan > 30000) { // up to 1 minute
+      tick.vgrid.min_type = d3.time.seconds;
+      tick.vgrid.min_count = 1;
+      tick.vgrid.maj_type = d3.time.seconds;
+      tick.vgrid.maj_count = 5;
+      tick.xaxis.type = d3.time.seconds;
+      tick.xaxis.count = 10;
+      tick.xaxis.sub = 5;
+      tick.xaxis.format = d3.time.format('%H:%M:%S');
+    } else { // up to 30 seconds
+      tick.vgrid.min_type = d3.time.seconds;
+      tick.vgrid.min_count = 1;
+      tick.vgrid.maj_type = d3.time.seconds;
+      tick.vgrid.maj_count = 5;
+      tick.xaxis.type = d3.time.seconds;
+      tick.xaxis.count = 5;
+      tick.xaxis.sub = 5;
+      tick.xaxis.format = d3.time.format('%H:%M:%S');
     }
 
     var vgrid_minor = this.svg.bottom_layer.selectAll('g.vgrid-minor').
@@ -1699,17 +1777,28 @@ RRDGraph = {};
     return kv;
   };
 
-  RRDGraph.init = function (selector) {
+  window['RRDGraph']['init'] = function (selector, config_str) {
     var result = [];
     d3.selectAll(selector).each(function () {
       var src = parseSrc(this.dataset.src);
       var element = this;
 
-      var config = new RRDGraph.Config(src);
+      var config;
+
+      if (src.realtime) {
+        config = new RRDGraph.Config(null, config_str);
+      } else {
+        config = new RRDGraph.Config(src);
+      }
+
       var graph = new RRDGraph.Graph(element, config);
       var data = new RRDGraph.Data(src, config);
 
       graph.bind(data);
+
+      if (!src.realtime) {
+        data.push(RRDGraph.get.data(src));
+      }
 
       result.push({
         config: config,

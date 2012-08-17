@@ -1,0 +1,83 @@
+<!doctype html>
+<title>Realtime Only Test</title>
+<style>
+  html, body, div {
+    padding: 0;
+    margin: 0;
+  }
+</style>
+
+<div class="rrdgraph" data-src="realtime=1"></div>
+<div>
+  Time per tick (seconds)
+  <input type="text" id="tick_interval" value="1"/>
+  <button id="animate">Start/stop data generation</button>
+</div>
+
+<script src="http://d3js.org/d3.v2.min.js"></script>
+<script src="../rrdgraph.js"></script>
+<script>
+  var config = (
+    "/usr/bin/rrdtool graph example.png \\\n" +
+    "--slope-mode \\\n" +
+    "--title=\"Realtime test\" \\\n" +
+    "--rigid \\\n" +
+    "--height=200 \\\n" +
+    "--width=500 \\\n" +
+    "--vertical-label=\"C\" \\\n" +
+    "--watermark=\"This is the watermark\" \\\n" +
+    "DEF:b=\"example.rrd\":temp:AVERAGE \\\n" +
+    "CDEF:c=b,FLOOR,b,SIN,- \\\n" +
+    "CDEF:b1=b,1,+ \\\n" +
+    "CDEF:d=c,12,GT,0.3,* \\\n" +
+    "VDEF:b_avg=b,AVERAGE \\\n" +
+    "AREA:c#000099:\"Magic\" \\\n" +
+    "AREA:d#999900:\"Stacked \\n\":STACK \\\n" +
+    "LINE1:b#009900:\"Outdoors \"  \\\n" +
+    "GPRINT:b:LAST:\" Cur\\:%8.2lf \"  \\\n" +
+    "GPRINT:b:AVERAGE:\"Avg\\:%8.2lf \"  \\\n" +
+    "GPRINT:b:MIN:\"Min\\:%8.2lf \"  \\\n" +
+    "GPRINT:b:MAX:\"Max\\:%8.2lf \\n\" \\\n" +
+    "LINE1:b1#990000:\"Outdoors + 1\"  \\\n" +
+    "HRULE:b_avg#bb4499:\"Average\":dashes=10,2,5,5 \\\n"
+  );
+
+  window.onload = function () {
+    var graphs = RRDGraph.init('.rrdgraph', config);
+    var graph = window.graph = graphs[0];
+
+    var lastPoint = {
+      t: +new Date(),
+      v: 20
+    };
+    var lastValue = lastPoint.v;
+
+    d3.select('#animate').on('click', function () {
+      if (window.interval === undefined) {
+        window.interval = setInterval(function () {
+          lastPoint = graph.data.data.arrays.b.slice(-1)[0];
+          if (lastPoint === undefined) {
+            lastPoint = {
+              t: +new Date(),
+              v: 20
+            };
+          }
+          var newDate = lastPoint.t + document.getElementById('tick_interval').value * 1000;
+          var newValue = lastValue - 0.1 + Math.random() * 0.2;
+          lastValue = newValue;
+          var newPoint = {t: newDate, v: newValue};
+          /*
+          if (Math.random() < 0.1) {
+            newPoint.v = null;
+          }
+          */
+          graph.data.push({"example.rrd" : [newPoint]});
+        }, 1000);
+      } else {
+        clearInterval(window.interval);
+        window.interval = undefined;
+      }
+    });
+  };
+</script>
+
