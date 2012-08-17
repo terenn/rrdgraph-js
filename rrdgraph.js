@@ -1392,6 +1392,17 @@ var RRDGraph = window['RRDGraph'] = {};
               attr('stroke-width', '0.75').
               attr('stroke-linecap', 'square');
           } else if (element.type === 'float' || element.type === 'exponential') {
+            var format = ' ';
+            format += element.width;
+            format += '.';
+            format += element.decimals;
+            if (element.si) {
+              format += 's';
+            } else if (element.type === 'float') {
+              format += 'f';
+            } else {
+              format += 'e';
+            }
             text.append('svg:tspan').
               attr('xml:space', 'preserve').
               attr('id', 'tspan_' + i + '_' + j);
@@ -1685,7 +1696,11 @@ var RRDGraph = window['RRDGraph'] = {};
     // Axes, TODO: color
     this.svg.canvas.selectAll('g.axis').remove();
 
-    var yAxis = d3.svg.axis().scale(this.scales.y).orient('left').ticks(6).tickSize(2);
+    var yAxis = d3.svg.axis().scale(this.scales.y).
+      orient('left').
+      tickFormat(d3.format(' s')).
+      ticks(6).tickSize(2);
+
     this.svg.canvas.append('svg:g').
       attr('class', 'y axis').
       call(yAxis);
