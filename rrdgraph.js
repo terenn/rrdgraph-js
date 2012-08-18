@@ -65,7 +65,7 @@ var RRDGraph = window['RRDGraph'] = {};
 
   var regex = {
     def: /^[CV]?DEF:/,
-    graph: /^PRINT|^GPRINT|^COMMENT|^VRULE|^HRULE|^LINE|^AREA|^TICK|^SHIFT|^TEXTALIGN/,
+    graph: /^PRINT|^GPRINT|^COMMENT|^VRULE|^HRULE|^LINE|^AREA|^TICK|^SHIFT|^TEXTALIGN|^STACK/,
     print: /^[G]?PRINT/,
     line: /^LINE/,
     split: /\\%%SPLIT%%/g,
@@ -281,7 +281,6 @@ var RRDGraph = window['RRDGraph'] = {};
             element.fraction = +subtokens[2];
           }
         } else { // vrule, hrule, line or area
-
           if (regex.line.test(subtokens[0])) {
             element.type = 'line';
 
@@ -338,6 +337,12 @@ var RRDGraph = window['RRDGraph'] = {};
             element.color = '#' + element.color.slice(0, 6);
             element.opacity = opacity_hex / 255.0;
           }
+        }
+
+        // convert deprecated STACK into a stacked AREA
+        if (element.type === 'stack') {
+          element.type = 'area';
+          element.stack = true;
         }
 
         if (element.type !== null) {
