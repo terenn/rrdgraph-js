@@ -28,9 +28,9 @@
     "DEF:currEstab={rrd1}:tcpCurrEstab:AVERAGE \\\n" +
     "AREA:currEstab#00ff00:\"Current \" \\\n" +
     "LINE2:currEstab#0000ff:\"Current Line \" \\\n" +
-    "GPRINT:currEstab:AVERAGE:\"Avg  \\: %8.2lf %s\" \\\n" +
-    "GPRINT:currEstab:MIN:\"Min  \\: %8.2lf %s\" \\\n" +
-    "GPRINT:currEstab:MAX:\"Max  \\: %8.2lf %s\\n\" \\\n"
+    "GPRINT:currEstab:AVERAGE:\"Avg  \\: %6.3lf %s\" \\\n" +
+    "GPRINT:currEstab:MIN:\"Min  \\: %6.3lf %s\" \\\n" +
+    "GPRINT:currEstab:MAX:\"Max  \\: %6.3lf %s\\n\" \\\n"
     );
 
     var mappings = {
@@ -49,7 +49,7 @@
     var dc = window.dc = new RRDGraph.DataCollector(graph.config, graph.data, mappings);
 
     var last = {
-      currEstab: 100,
+      currEstab: 100000,
     };
 
     var def_to_metric = {
@@ -66,7 +66,7 @@
 
           for (var p in last) {
             var newDate = +new Date();
-            var newValue = last[p] - 1 + Math.floor(Math.random() * 3);
+            var newValue = last[p] - 100 + Math.floor(Math.random() * 300);
             if (Math.random() > 0.05) {
               newValue = last[p];
             }

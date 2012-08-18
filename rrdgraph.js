@@ -1436,17 +1436,6 @@ var RRDGraph = window['RRDGraph'] = {};
               attr('stroke-width', '0.75').
               attr('stroke-linecap', 'square');
           } else if (element.type === 'float' || element.type === 'exponential') {
-            var format = ' ';
-            format += element.width;
-            format += '.';
-            format += element.decimals;
-            if (element.si) {
-              format += 's';
-            } else if (element.type === 'float') {
-              format += 'f';
-            } else {
-              format += 'e';
-            }
             text.append('svg:tspan').
               attr('xml:space', 'preserve').
               attr('id', 'tspan_' + i + '_' + j);
@@ -1814,17 +1803,22 @@ var RRDGraph = window['RRDGraph'] = {};
       for (var j = 0; j < line.content.length; ++j) {
         var element = line.content[j];
         if (typeof element === 'object') {
-          if (element.type === 'float') {
-            var value = this.data.data.values[element.vname].v;
-            var text = value.toFixed(element.decimals);
-            while (text.length < element.width) {
-              text = ' ' + text;
+          if (element.type === 'float' || element.type === 'exponential') {
+            var format = ' ';
+            format += element.width;
+            format += '.';
+            format += element.decimals;
+            if (element.si) {
+              format += 's';
+            } else if (element.type === 'float') {
+              format += 'f';
+            } else {
+              format += 'e';
             }
-            this.svg.container.select('#tspan_' + i + '_' + j).
-              text(text);
-          } else if (element.type === 'exponential') {
+
+            var formatter = d3.format(format);
             var value = this.data.data.values[element.vname].v;
-            var text = value.toExponential(element.decimals);
+            var text = formatter(value);
             while (text.length < element.width) {
               text = ' ' + text;
             }
