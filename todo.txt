@@ -3,4 +3,5 @@
   2)  fix limits/rigidness
   4)  reread code and comment anything not immediately understandable
   5)  write a readme + howto
-  6)  comment uninmplemented features in the legend + fallback
+  6)  comment uninmplemented features in the legend
+  
