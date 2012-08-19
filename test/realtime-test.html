@@ -24,6 +24,8 @@
     "--title=\"Current TCP connections\" \\\n" +
     "--height=200 \\\n" +
     "--width=500 \\\n" +
+    "--upper-limit 200 \\\n" +
+    "--lower-limit 0 \\\n" +
     "--vertical-label=\"Current Connections\" \\\n" +
     "DEF:currEstab={rrd1}:tcpCurrEstab:AVERAGE \\\n" +
     "AREA:currEstab#00ff00:\"Current \" \\\n" +
