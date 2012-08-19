@@ -26,41 +26,41 @@ Installation / Usage
 
 5. To add data to the graph, there are two methods:
 
-5.1. Preconsolidated data
-    ``` javascript
-    var graph = graphs[i];
-    graph.data.push([
-      {
-        def: 'defname',
-        points: [
+    1. Preconsolidated data
+        ``` javascript
+        var graph = graphs[i];
+        graph.data.push([
           {
-            t: timestamp,
-            v: value
+            def: 'defname',
+            points: [
+              {
+                t: timestamp,
+                v: value
+              }
+            ]
           }
-        ]
-      }
-    ]);
-    ```
-    This data will be immediately added to the graph.
-5.2. Realtime metrics
-    ``` javascript
-    // metricId to rrd:ds_name mappings
-    var mappings = {
-      'metricId1' : 'rrd_name:ds_name'
-    };
-    var graph = graphs[i];
-    var dc = new RRDGraph.DataCollector(graph.config, graph.data, mappings);
-    dc.push([
-      {
-        metricId: 'metricId1',
-        timeStamp: timestamp,
-        value: value
-      }
-    ]);
-    ```
+        ]);
+        ```
+        This data will be immediately added to the graph.
+    2. Realtime metrics
+        ``` javascript
+        // metricId to rrd:ds_name mappings
+        var mappings = {
+          'metricId1' : 'rrd_name:ds_name'
+        };
+        var graph = graphs[i];
+        var dc = new RRDGraph.DataCollector(graph.config, graph.data, mappings);
+        dc.push([
+          {
+            metricId: 'metricId1',
+            timeStamp: timestamp,
+            value: value
+          }
+        ]);
+        ```
 
-    The metrics will be consolidated according to the RRD command and pushed when enough metrics
-    have been collected to create data points.
+        The metrics will be consolidated according to the RRD command and pushed when enough metrics
+        have been collected to create data points.
 
 More usage
 ----------
