@@ -788,7 +788,6 @@ var RRDGraph = window['RRDGraph'] = {};
       } else if (!a_is_number && !b_is_number) {
         if (a.length !== b.length) {
           throw 'DEFs have differing number of elements';
-          // TODO: this may not be an error, not sure yet
         }
 
         var result = [];
@@ -1392,7 +1391,7 @@ var RRDGraph = window['RRDGraph'] = {};
     'justify': 'start'
   };
 
-  Graph.prototype.createLegend = function () { // TODO: better alignment
+  Graph.prototype.createLegend = function () { // TODO: justify
     var y = this.canvas_padding.y + this.config.options.height + 
       this.config.options.font.axis.size + 5;
     var line_height = this.config.options.font.legend.size + 4;
