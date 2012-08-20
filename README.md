@@ -41,6 +41,7 @@ Installation / Usage
           }
         ]);
         ```
+
         This data will be immediately added to the graph.
     2. Realtime metrics
         ``` javascript
