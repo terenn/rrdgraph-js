@@ -1522,7 +1522,7 @@ var RRDGraph = window['RRDGraph'] = {};
 
   Graph.prototype.update = function () {
     var y_min = Math.floor(this.data.extremes.y.min);
-    var y_max = Math.floor(this.data.extremes.y.max);
+    var y_max = Math.ceil(this.data.extremes.y.max);
 
     var conf_y_max = this.config.options['upper-limit'];
     var conf_y_min = this.config.options['lower-limit'];
