@@ -46,6 +46,131 @@ var RRDGraph = window['RRDGraph'] = {};
 })();
 
 /*******************************************************************************
+ * RPN Parse
+ ******************************************************************************/
+(function () {
+	
+	var RPNParser = RRDGraph.RPNParser = function () {
+    };
+    
+    
+    var constant = function(term) {
+    	var f = function(i, context) { return { v:+term }; };
+    	f.term = term;
+    	return f;
+    };
+
+    var ternaryOperator = function(f) {
+    	return function(rpn, defs) {
+    		var c = parseTerm(rpn, defs);
+    		var b = parseTerm(rpn, defs);
+    		var a = parseTerm(rpn, defs);
+    		var result = function(i, context) { 
+    			var valA = a(i, context);
+    			var valB = b(i, context);
+    			var valC = c(i, contet);
+    			return { t:valA.t||valB.t||valC.t, v:f(valA. v, valB.v, valC.v )};
+    		};
+    		return result;
+    	};
+    };
+    
+    var binaryOperator = function(f) {
+    	return function(rpn, defs) {
+    		var b = parseTerm(rpn, defs);
+    		var a = parseTerm(rpn, defs);
+    		var result = function(i, context) { 
+    			var valA = a(i, context);
+    			var valB = b(i, context);
+    			return { t:valA.t||valB.t, v:f( valA.v, valB.v )};
+    		};
+    		return result;
+    	};
+    };
+    
+    var unaryOperator = function(f) {
+    	return function(rpn, defs) {
+    		var a = parseTerm(rpn, defs);
+    		var result = function(i, context) { 
+    			var valA = a(i, context);
+    			return { t:valA.t, v:f( valA.v ) };
+    		};
+    		return result;
+    	};
+    };
+    
+    var RPN_OPERATORS = {
+    		'LT'     : binaryOperator (function (a, b) { return +(a < b); }),
+    		'GT'     : binaryOperator (function (a, b) { return +(a > b); }),
+    		'LE'     : binaryOperator (function (a, b) { return +(a <= b); }),
+    		'GE'     : binaryOperator (function (a, b) { return +(a >= b); }),
+    		'EQ'     : binaryOperator (function (a, b) { return +(a === b); }),
+    		'NE'     : binaryOperator (function (a, b) { return +(a !== b); }),
+    		'UN'     : unaryOperator  (function (a)    { return +(isNaN(a)); }),
+    		'ISINF'  : unaryOperator  (function (a)    { return +(a == Number.POSITIVE_INFINITY || a == Number.NEGATIVE_INFINITY); }),
+    		'MIN'    : binaryOperator (function (a, b) { return Math.min(a, b); }),
+    		'MAX'    : binaryOperator (function (a, b) { return Math.max(a, b); }),
+    		'+'      : binaryOperator (function (a, b) { return a + b; }),
+    		'*'      : binaryOperator (function (a, b) { return a * b; }),
+    		'-'      : binaryOperator (function (a, b) { return a - b; }),
+    		'/'      : binaryOperator (function (a, b) { return a / b; }),
+    		'%'      : binaryOperator (function (a, b) { return a % b; }),
+    		'ADDNAN' : binaryOperator (function (a, b) { return isNaN(a) ? b : (isNaN(b) ? a : a + b); }),
+    		'SIN'    : unaryOperator  (function (a)    { return Math.sin(a); }),
+    		'COS'    : unaryOperator  (function (a)    { return Math.cos(a); }),
+    		'LOG'    : unaryOperator  (function (a)    { return Math.log(a); }),
+    		'EXP'    : unaryOperator  (function (a)    { return Math.exp(a); }),
+    		'SQRT'   : unaryOperator  (function (a)    { return Math.sqrt(a); }),
+    		'ATAN'   : unaryOperator  (function (a)    { return Math.atan(a); }),
+    		'ATAN2'  : unaryOperator  (function (a, b) { return Math.atan2(a, b); }),
+    		'FLOOR'  : unaryOperator  (function (a)    { return Math.floor(a); }),
+    		'CEIL'   : unaryOperator  (function (a)    { return Math.ceil(a); }),
+    		'DEG2RAD': unaryOperator  (function (a)    { return a * Math.PI / 180.0; }),
+    		'RAD2DEG': unaryOperator  (function (a)    { return a * 180 / Math.PI; }),
+    		'ABS'    : unaryOperator  (function (a)    { return Math.abs(a); }),
+    		'IF'     : ternaryOperator(function (a, b, c) { return a ? b : c; }),
+    		'LIMIT'  : ternaryOperator(function (a, b, c) { return (b <= a && a <= c) ? a : NaN; }),
+    };
+    
+    function parseTerm(rpn, defs) {
+    	var term = rpn.pop();
+    	if (!isNaN(term)) {
+    		return constant(term);
+    	} else if (defs[term]) {
+    		return defs[term];
+    	} else if (RPN_OPERATORS[term]) {
+    		return RPN_OPERATORS[term](rpn, defs);
+    	} else {
+    		console.log("Unexpected operator " + term);
+    		throw "Unexpected operator " + term;
+    	}
+    };
+
+    RPNParser.prototype.parse = function (rpnStr, defs) {
+    	var rpn = rpnStr.split(',');
+    	return parseTerm(rpn, defs);
+    };
+
+    RPNParser.prototype.createDef = function(vname, type, value, defs) { 
+    	function f(i, context) { return context[vname].data[i]; }; 
+    	f.vname = vname;
+    	f.type = type;
+    	f.value = value;
+    	return f;
+    };
+    
+    RPNParser.prototype.createCDef = function(vname, type, value, defs) { 
+    	var f = this.parse(value, defs); 
+    	f.vname = vname;
+    	f.type = type;
+    	f.value = value;
+    	return f;
+    };
+
+	
+})();
+
+/*******************************************************************************
  * The config
  ******************************************************************************/
 
@@ -90,6 +215,276 @@ var RRDGraph = window['RRDGraph'] = {};
       options[option] = cast(options[option]);
     }
   };
+
+  var printType = function(tokens) {
+	    this.type = tokens[0].toLowerCase();
+		this.vname = tokens[1];
+		if (tokens.length === 3) {
+			this.format = tokens[2];
+		} else {
+			this.format = tokens[3];
+			this.cf = tokens[2];
+		}
+	 };
+
+	 var lineType = function(tokens) {
+		 this.type = "line";
+
+		 if (tokens[0].length > 4) {
+			 this.width = parseFloat(tokens[0].slice(4));
+		 } else {
+			 this.width = 1;
+		 }
+
+		 var key_color = tokens[1].split('#');
+		 this.value = key_color[0];
+
+		 if (key_color.length === 2) {
+			 this.color = key_color[1];
+		 }
+
+		 if (tokens.length == 3 && tokens[2] === 'STACK') {
+			 this.stack = true;
+		 } else if (tokens.length >= 3) { // legend
+			 this.legend = tokens[2];
+
+			 for (var st = 3, sl = tokens.length; st < sl; ++st) {
+				 if (tokens[st] === 'STACK') {
+					 this.stack = true;
+				 } else { // dashes or dash-offset
+					 var key_value = tokens[st].split('=');
+					 if (key_value[0] === 'dashes') {
+						 if (key_value.length === 2) {
+							 this.dashes = key_value[1].replace(',', ' ');
+						 } else {
+							 this.dashes = '5 5';
+						 }
+					 } else { // dash-offset
+						 this.dash_offset = tokens[st].split('=')[1];
+					 }
+				 }
+			 }
+		 }
+
+
+	 };
+	 
+  var types = {
+    gprint  : printType,
+    print   : printType,
+    comment : function(tokens){
+    	this.type = 'comment';
+    	this.text = tokens[1];
+    },
+    shift   : function(tokens) {
+    	this.type = 'shift';
+    	this.vname = tokens[1];
+    	this.offset = tokens[2];
+    },
+    textalign:function(tokens) {
+    	this.type = 'textalign';
+		this.textalign = tokens[1];
+    },
+    tick    : function(tokens) {
+    	this.type = 'tick';
+        var vname_color = tokens[1].split('#');
+        this.value = vname_color[0];
+        this.color = vname_color[1];
+        
+        if (tokens.length > 3) {
+          this.legend = subtokens[3];
+        }
+
+        this.fraction = 0.1;
+
+        if (tokens.length >= 3) {
+          this.fraction = +subtokens[2];
+        }
+    },
+	line : lineType,
+	vrule:function(tokens) {
+		this.type = tokens[0].toLowerCase();
+
+
+		var key_color = tokens[1].split('#');
+		this.time = new Date(+key_color[0]);
+
+		if (key_color.length === 2) {
+			this.color = key_color[1];
+		}
+
+		if (tokens.length == 3 && tokens[2] === 'STACK') {
+			this.stack = true;
+		} else if (tokens.length >= 3) { // legend
+			this.legend = tokens[2];
+
+			for (var st = 3, sl = tokens.length; st < sl; ++st) {
+				if (tokens[st] === 'STACK') {
+					this.stack = true;
+				} else { // dashes or dash-offset
+					var key_value = tokens[st].split('=');
+					if (key_value[0] === 'dashes') {
+						if (key_value.length === 2) {
+							this.dashes = key_value[1].replace(',', ' ');
+						} else {
+							this.dashes = '5 5';
+						}
+					} else { // dash-offset
+						this.dash_offset = tokens[st].split('=')[1];
+					}
+				}
+			}
+		}
+    },
+    hrule:function(tokens){
+		this.type = tokens[0].toLowerCase();
+
+
+		var key_color = tokens[1].split('#');
+		this.value = key_color[0];
+
+		if (key_color.length === 2) {
+			this.color = key_color[1];
+		}
+
+		if (tokens.length == 3 && tokens[2] === 'STACK') {
+			this.stack = true;
+		} else if (tokens.length >= 3) { // legend
+			this.legend = tokens[2];
+
+			for (var st = 3, sl = tokens.length; st < sl; ++st) {
+				if (tokens[st] === 'STACK') {
+					this.stack = true;
+				} else { // dashes or dash-offset
+					var key_value = tokens[st].split('=');
+					if (key_value[0] === 'dashes') {
+						if (key_value.length === 2) {
+							this.dashes = key_value[1].replace(',', ' ');
+						} else {
+							this.dashes = '5 5';
+						}
+					} else { // dash-offset
+						this.dash_offset = tokens[st].split('=')[1];
+					}
+				}
+			}
+		}
+    },
+	area : function(tokens) {
+		this.type = tokens[0].toLowerCase();
+
+
+		var key_color = tokens[1].split('#');
+		this.value = key_color[0];
+
+		if (key_color.length === 2) {
+			this.color = key_color[1];
+		}
+
+		if (tokens.length == 3 && tokens[2] === 'STACK') {
+			this.stack = true;
+		} else if (tokens.length >= 3) { // legend
+			this.legend = tokens[2];
+
+			for (var st = 3, sl = tokens.length; st < sl; ++st) {
+				if (tokens[st] === 'STACK') {
+					this.stack = true;
+				} else { // dashes or dash-offset
+					var key_value = tokens[st].split('=');
+					if (key_value[0] === 'dashes') {
+						if (key_value.length === 2) {
+							this.dashes = key_value[1].replace(',', ' ');
+						} else {
+							this.dashes = '5 5';
+						}
+					} else { // dash-offset
+						this.dash_offset = tokens[st].split('=')[1];
+					}
+				}
+			}
+		}
+	},
+	stack:function(tokens){
+		this.type = "area";
+
+
+		var key_color = tokens[1].split('#');
+		this.value = key_color[0];
+
+		if (key_color.length === 2) {
+			this.color = key_color[1];
+		}
+
+		if (tokens.length == 3 && tokens[2] === 'STACK') {
+			this.stack = true;
+		} else if (tokens.length >= 3) { // legend
+			this.legend = tokens[2];
+
+			for (var st = 3, sl = tokens.length; st < sl; ++st) {
+				if (tokens[st] === 'STACK') {
+					this.stack = true;
+				} else { // dashes or dash-offset
+					var key_value = tokens[st].split('=');
+					if (key_value[0] === 'dashes') {
+						if (key_value.length === 2) {
+							this.dashes = key_value[1].replace(',', ' ');
+						} else {
+							this.dashes = '5 5';
+						};
+					} else { // dash-offset
+						this.dash_offset = tokens[st].split('=')[1];
+					};
+				};
+			};
+		}
+		
+		this.stack = true;
+
+	}
+  };
+  
+  var parser = new RRDGraph.RPNParser();
+  
+  var parseDef = function(subtokens, defs) {
+	  
+	  console.log("parsing " + subtokens);
+	  console.log("defs");
+	  console.log(defs);
+	  
+	  var token = subtokens[0];
+      if (token.charAt(0) === 'D') { // DEF
+          var type = 'data';
+          var value = {};
+          console.log(subtokens[1]);
+          var name_rrd = subtokens[1].split('=');
+          var vname = name_rrd[0];
+          value.rrd = name_rrd[1];
+          value.ds_name = subtokens[2];
+          value.cf = subtokens[3];
+
+          for (var st = 4, sl = subtokens.length; st < sl; ++st) {
+            var st_kv = subtokens[st].split('=');
+            value[st_kv[0]] = st_kv[1];
+          }
+          
+          console.log("vname is '" + vname + "'");
+          return parser.createDef(vname, type, value, defs);
+          
+        } else {
+          var type = (token.charAt(0) === 'C') ? 'calc' : 'value';
+          
+          var secondToken = subtokens[1];
+          var split_at = secondToken.indexOf('=');
+          var name = secondToken.slice(0, split_at);
+          
+          var value = secondToken.slice(split_at + 1);
+          
+          console.log(defs);
+          return parser.createCDef(name, type, value, defs);
+          
+        }
+  };
+  
 
   var parse = function (config_string) {
     var result = {
@@ -163,7 +558,8 @@ var RRDGraph = window['RRDGraph'] = {};
       defs: {
         data: {},
         value: {},
-        calc: {}
+        calc: {},
+        all:{},
       },
       graphs: []
     };
@@ -172,37 +568,18 @@ var RRDGraph = window['RRDGraph'] = {};
 
     for (var t = 0, l = tokens.length; t < l; ++t) {
       var token = tokens[t];
+      
+      var element;
 
       if (regex.def.test(token)) {
         var subtokens = token.split(':');
+        var def  = parseDef(subtokens, result.defs.all);
+
+        console.log("def is");
+        console.log(def);
+        result.defs[def.type][def.vname] = def.value;
+        result.defs.all[def.vname] = def;
         
-        var name;
-        var value;
-        var type;
-
-        if (token.charAt(0) === 'D') { // DEF
-          type = 'data';
-          value = {};
-
-          var name_rrd = subtokens[1].split('=');
-          name = name_rrd[0];
-          value.rrd = name_rrd[1];
-          value.ds_name = subtokens[2];
-          value.cf = subtokens[3];
-
-          for (var st = 4, sl = subtokens.length; st < sl; ++st) {
-            var st_kv = subtokens[st].split('=');
-            value[st_kv[0]] = st_kv[1];
-          }
-        } else {
-          type = (token.charAt(0) === 'C') ? 'calc' : 'value';
-
-          var split_at = token.indexOf('=');
-          name = token.slice(5, split_at);
-          value = token.slice(split_at + 1);
-        }
-
-        result.defs[type][name] = value;
       } else if (token.charAt(0) === '-' && token.length > 1) {
         var n_dashes = (token.charAt(1) === '-') ? 2 : 1;
         var option = token.slice(n_dashes);
@@ -238,95 +615,13 @@ var RRDGraph = window['RRDGraph'] = {};
         token = token.replace(regex.split, ':');
 
         var subtokens = token.split('%%SPLIT%%');
-        var element = {
-          type: null
-        };
-
-        if (regex.print.test(subtokens[0])) {
-          element.type = subtokens[0].toLowerCase();
-
-          element.vname = subtokens[1];
-          if (subtokens.length === 3) { // newer
-            element.format = subtokens[2];
-          } else { // deprecated type
-            element.format = subtokens[3];
-            element.cf = subtokens[2];
-          }
-        } else if (subtokens[0] === 'COMMENT') {
-          element.type = 'comment';
-
-          element.text = subtokens[1];
-        } else if (subtokens[0] === 'SHIFT') {
-          element.type = 'shift';
-
-          element.vname = subtokens[1];
-          element.offset = subtokens[2];
-        } else if (subtokens[0] === 'TEXTALIGN') {
-          element.type = 'textalign';
-          element.textalign = subtokens[1];
-        } else if (subtokens[0] === 'TICK') {
-          element.type = 'tick';
-
-          var vname_color = subtokens[1].split('#');
-          element.value = vname_color[0];
-          element.color = vname_color[1];
-          
-          if (subtokens.length > 3) {
-            element.legend = subtokens[3];
-          }
-
-          element.fraction = 0.1;
-
-          if (subtokens.length >= 3) {
-            element.fraction = +subtokens[2];
-          }
-        } else { // vrule, hrule, line or area
-          if (regex.line.test(subtokens[0])) {
-            element.type = 'line';
-
-            if (subtokens[0].length > 4) {
-              element.width = parseFloat(subtokens[0].slice(4));
-            } else {
-              element.width = 1;
-            }
-          } else {
-            element.type = subtokens[0].toLowerCase();
-          }
-
-          var key_color = subtokens[1].split('#');
-          if (element.type === 'vrule') {
-            element.time = new Date(+key_color[0]);
-          } else { // hrule, line, area
-            element.value = key_color[0];
-          }
-
-          if (key_color.length === 2) {
-            element.color = key_color[1];
-          }
-
-          if (subtokens.length == 3 && subtokens[2] === 'STACK') {
-            element.stack = true;
-          } else if (subtokens.length >= 3) { // legend
-            element.legend = subtokens[2];
-
-            for (var st = 3, sl = subtokens.length; st < sl; ++st) {
-              if (subtokens[st] === 'STACK') {
-                element.stack = true;
-              } else { // dashes or dash-offset
-                var key_value = subtokens[st].split('=');
-                if (key_value[0] === 'dashes') {
-                  if (key_value.length === 2) {
-                    element.dashes = key_value[1].replace(',', ' ');
-                  } else {
-                    element.dashes = '5 5';
-                  }
-                } else { // dash-offset
-                  element.dash_offset = subtokens[st].split('=')[1];
-                }
-              }
-            }
-          }
+        
+        if (regex.line.test(subtokens[0])) {
+        	element = new types['line'](subtokens);
+        } else {
+        	element = new types[subtokens[0].toLowerCase()](subtokens);
         }
+        
 
         if ('color' in element) { // extract opacity
           if (element.color.length === 6) { // just color, default opacity
@@ -339,13 +634,7 @@ var RRDGraph = window['RRDGraph'] = {};
           }
         }
 
-        // convert deprecated STACK into a stacked AREA
-        if (element.type === 'stack') {
-          element.type = 'area';
-          element.stack = true;
-        }
-
-        if (element.type !== null) {
+        if (element) {
           result.graphs.push(element);
         }
       }
@@ -575,10 +864,13 @@ var RRDGraph = window['RRDGraph'] = {};
     for (var vname in this.data.arrays) {
       for (var g in this.config.graphs) {
         var graph = this.config.graphs[g];
-        if (graph.value === vname && (graph.type === 'line' || graph.type === 'area') &&
-           !graph.stack) {
+        if (graph.value === vname && (graph.type === 'line' || graph.type === 'area') ) {
           this.affects_extremes[vname] = true;
         }
+//        if (graph.value === vname && (graph.type === 'line' || graph.type === 'area') &&
+//           !graph.stack) {
+//          this.affects_extremes[vname] = true;
+//        }
       }
     }
   };
@@ -1889,8 +2181,7 @@ var RRDGraph = window['RRDGraph'] = {};
 
       result.push({
         config: config,
-        graph: graph,
-        data: data
+        graph: graph,        data: data
       });
     });
 

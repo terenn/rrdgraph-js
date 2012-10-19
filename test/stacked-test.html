@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Stacked Graph Tests</title>
+  <link rel="stylesheet" href="res/qunit-1.10.0.css">
+</head>
+<body>
+  <div id="qunit"></div>
+  <div id="qunit-fixture"></div>
+  <div class="rrdgraph" data-src="resourceId=test&amp;report=daily&amp;start=1340398800000&amp;end=1340485200000"></div>
+  <script src="res/qunit-1.10.0.js"></script>
+  <script src="http://d3js.org/d3.v2.min.js"></script>
+  <script src="../rrdgraph.js"></script>
+  <script src="data.day.js"></script>
+  <script src="data.week.js"></script>
+  <script src="data.month.js"></script>
+  <script>
+    test("undefine?", function() {
+        var x = { one:1 };
+        ok( x.bogus === x.bogus );
+
+        deepEqual( { v:1 }, { v:1 });
+
+	    equal( x.zero||x.one||x.two, 1 )
+
+	    equal( x.nope||x.nada||x.idontthinkso, undefined );        
+    });
+    test("min NaN", function() {
+        ok(isNaN( Math.min(1, NaN) ) );
+    });
+    test("parse rpn", function() {
+
+    	var parser = new RRDGraph.RPNParser();
+    	var f = parser.parse("2,1,-", {});
+
+    	deepEqual( f(0,null),  { t:undefined, v:1 } );
+
+    	f = parser.parse("1,2,+,3,4,+,*", {});
+    	deepEqual( f(0, null), { t:undefined, v:21 } );
+
+    	var context = {};
+		context['mydef'] = {};
+		context['mydef'].data = [];
+		context['yourdef'] = {};
+		context['yourdef'].data = [];
+		
+		
+		var now = +(new Date());
+    	for(var i = 10; i > 0; i--) {
+			context['mydef'].data.push( { t:now - i, v:i } );			
+			context['yourdef'].data.push( { t:now - i, v:i*i } );			
+    	}
+
+    	var defs = {};
+    	defs['mydef'] = function(i, context) { return context['mydef'].data[i]; }; 
+    	defs['yourdef'] = function(i, context) { return context['yourdef'].data[i]; }; 
+
+    	ok( defs['mydef'](0, context) );
+    	
+    	f = parser.parse("2,mydef,*", defs);
+    	deepEqual( f(0, context), { t:now-10, v:20 } );
+    	deepEqual( f(1, context), { t:now-9, v:18 } ); 
+    	
+    	f = parser.parse("mydef,2,*", defs);
+    	deepEqual( f(0, context), { t:now-10, v:20 } );
+    	deepEqual( f(1, context), { t:now-9, v:18 } ); 
+
+    	f = parser.parse("mydef,1,-,yourdef,1,+,*", defs);
+    	deepEqual( f(0, context), { t:now-10, v:999 } );
+    	deepEqual( f(1, context), { t:now-9, v:77 } ); 
+
+    });
+    test( "parse a graph", function() {
+    	  // Override the getters for the test
+    	  var config = new RRDGraph.Config(null, 
+    	    	    "/usr/bin/rrdtool graph example.png \\\n" +
+    	    	    "--slope-mode \\\n" +
+    	    	    "--title=\"Current TCP connections\" \\\n" +
+    	    	    "--width=500 \\\n" +
+    	    	    "--lower-limit 0 \\\n" +
+    	    	    "--vertical-label=\"Current Connections\" \\\n" +
+    	    	    "DEF:b=\"example.rrd\":temp:AVERAGE \\\n" +
+    	    	    "CDEF:area1=b \\\n" +
+    	    	    "CDEF:area2=b \\\n" +
+    	    	    "CDEF:stack=b \\\n" +
+    	    	    "CDEF:line=b \\\n" +
+    	     	    "AREA:area1#00ff0033:\"Current \" \\\n" +
+    	    	    "AREA:area2#ff000033:\"Again \":STACK \\\n" +
+    	    	    "STACK:stack#0000ff:\"My Stack\" \\\n" +
+    	    	    "LINE2:line#0000ff:\"Current Line \" \\\n" +
+    	    	    "GPRINT:currEstab:AVERAGE:\"Avg  \\: %6.3lf %s\" \\\n" +
+    	    	    "GPRINT:currEstab:MIN:\"Min  \\: %6.3lf %s\" \\\n" +
+    	    	    "GPRINT:currEstab:MAX:\"Max  \\: %6.3lf %s\\n\" \\\n"
+    	    );
+
+    	    ok(config, "config ok");
+    	    ok(config.options, "options ok");
+			ok(config.defs, "defs ok");
+			ok(config.defs.data, "data defs ok");
+			ok(config.defs.value, "value defs ok");
+			ok(config.defs.calc, "cdefs ok");
+			ok(config.graphs, "graph elements ok");
+			equal( config.graphs.length, 7, "expected graph and text elements together" );
+			equal( config.graphs.filter(function(e) { return e.type === "line" || e.type == "area" }).length, 4, "number of actual graph elements");
+			ok(config.legend, "legend ok");
+			equal( config.graphs.filter(function(e) { return e.type === 'line' && e.width === 2 && e.value === "line" }).length, 1, "find a LINE2");
+			equal( config.graphs.filter(function(e) { return e.type === 'area' && !e.stack && e.value === "area1" }).length, 1, "find a unstacked AREA");
+			equal( config.graphs.filter(function(e) { return e.type === 'area' && e.stack  && e.value === "area2"}).length, 1, "find a stacked AREA");
+			equal( config.graphs.filter(function(e) { return e.type === 'area' && e.stack  && e.value === "stack"}).length, 1, "find the STACK");
+
+    	  
+
+      	  
+    });
+  </script>
+</body>
+</html>
+
+
+

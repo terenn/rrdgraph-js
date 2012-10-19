@@ -1,0 +1,27 @@
+DEF = function(timestamp, i) { return data[timestamp]; }
+CDEF ( a,b,+) = function(timestamp, i) { return a(timestamp) + b(stamp); }
+a,b,+,c,d,+,*
+
+a def
+b def
+c def
+d def
+
+function() { _f(timestamp) * _g(timestamp)
+
+
+var myArea = {
+ type : "area"
+ highvalue : def
+ lowvalue : def ( defaults function(timstampe) { return 0; }
+ }
+ 
+var myStackedArea = {
+	lowvalue = myArea.highValue  
+	
+	
+	
+shape.y0(lowvalue(timestamp))
+
+shape.y1(highvalue(teimstamp))	
+  

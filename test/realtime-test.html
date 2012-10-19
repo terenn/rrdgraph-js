@@ -24,11 +24,11 @@
     "--title=\"Current TCP connections\" \\\n" +
     "--height=200 \\\n" +
     "--width=500 \\\n" +
-    "--upper-limit 200 \\\n" +
     "--lower-limit 0 \\\n" +
     "--vertical-label=\"Current Connections\" \\\n" +
     "DEF:currEstab={rrd1}:tcpCurrEstab:AVERAGE \\\n" +
-    "AREA:currEstab#00ff00:\"Current \" \\\n" +
+    "AREA:currEstab#00ff0033:\"Current \" \\\n" +
+    "AREA:currEstab#ff000033:\"Again \":STACK \\\n" +
     "LINE2:currEstab#0000ff:\"Current Line \" \\\n" +
     "GPRINT:currEstab:AVERAGE:\"Avg  \\: %6.3lf %s\" \\\n" +
     "GPRINT:currEstab:MIN:\"Min  \\: %6.3lf %s\" \\\n" +
@@ -38,10 +38,6 @@
     var mappings = {
       '.1.2.3.4.5': '{rrd1}:tcpCurrEstab',
     };
-
-
-
-
 
 
   window.onload = function () {
